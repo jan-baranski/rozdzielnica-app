@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="120" viewBox="0 0 72 120">
+  <rect x="0.5" y="0.5" width="71" height="119" rx="2" fill="#f9fafb" stroke="#8a96a8"/>
+  <path d="M18 1v118M36 1v118M54 1v118" stroke="#d2d9e4"/>
+  <rect x="6" y="4" width="60" height="17" rx="1" fill="#eef2f7"/>
+  <circle cx="12" cy="13" r="3" fill="#c7d0dc" stroke="#7d8796"/>
+  <circle cx="28" cy="13" r="3" fill="#c7d0dc" stroke="#7d8796"/>
+  <circle cx="44" cy="13" r="3" fill="#c7d0dc" stroke="#7d8796"/>
+  <circle cx="60" cy="13" r="3" fill="#c7d0dc" stroke="#7d8796"/>
+  <rect x="10" y="37" width="52" height="35" rx="2" fill="#e8edf3" stroke="#b9c3d0"/>
+  <rect x="20" y="45" width="32" height="16" rx="2" fill="#1f2937"/>
+  <circle cx="60" cy="84" r="3.5" fill="#fdb022" stroke="#b98500"/>
+  <text x="36" y="31" font-size="5" text-anchor="middle" font-family="Arial" fill="#111827">RCD 4P</text>
+  <text x="36" y="107" font-size="4" text-anchor="middle" font-family="Arial" fill="#475467">40A 30mA</text>
+</svg>

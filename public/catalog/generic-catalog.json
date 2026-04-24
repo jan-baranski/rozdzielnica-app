@@ -1,0 +1,308 @@
+[
+  {
+    "id": "mcb-1p-b16",
+    "manufacturer": "Generic",
+    "model": "MCB-1P-B16",
+    "category": "Protection",
+    "displayName": "MCB 1P B16",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 16, "curve": "B", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-1p.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "mcb-1p-b20",
+    "manufacturer": "Generic",
+    "model": "MCB-1P-B20",
+    "category": "Protection",
+    "displayName": "MCB 1P B20",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 20, "curve": "B", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-1p.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "mcb-1p-b25",
+    "manufacturer": "Generic",
+    "model": "MCB-1P-B25",
+    "category": "Protection",
+    "displayName": "MCB 1P B25",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 25, "curve": "B", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-1p.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "mcb-1p-b10",
+    "manufacturer": "Generic",
+    "model": "MCB-1P-B10",
+    "category": "Protection",
+    "displayName": "MCB 1P B10",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 10, "curve": "B", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-1p.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "mcb-1p-c16",
+    "manufacturer": "Generic",
+    "model": "MCB-1P-C16",
+    "category": "Protection",
+    "displayName": "MCB 1P C16",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 16, "curve": "C", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-1p.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "mcb-1p-c20",
+    "manufacturer": "Generic",
+    "model": "MCB-1P-C20",
+    "category": "Protection",
+    "displayName": "MCB 1P C20",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 20, "curve": "C", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-1p.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "mcb-3p",
+    "manufacturer": "Generic",
+    "model": "MCB-3P-C32",
+    "category": "Protection",
+    "displayName": "MCB 3P",
+    "type": "mcb",
+    "placementMode": "din_module",
+    "moduleWidth": 3,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L1 in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l2-in", "label": "L2 in", "role": "power_in", "pole": "L2", "direction": "in" },
+      { "id": "l3-in", "label": "L3 in", "role": "power_in", "pole": "L3", "direction": "in" },
+      { "id": "l1-out", "label": "L1 out", "role": "power_out", "pole": "L1", "direction": "out" },
+      { "id": "l2-out", "label": "L2 out", "role": "power_out", "pole": "L2", "direction": "out" },
+      { "id": "l3-out", "label": "L3 out", "role": "power_out", "pole": "L3", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 32, "curve": "C", "poles": 3, "shortCircuitCapacityKa": 6, "requiresInput": true },
+    "visual": { "src": "/assets/components/mcb-3p.png", "widthModules": 3, "heightPx": 120 }
+  },
+  {
+    "id": "rcd-2p-40a-30ma",
+    "manufacturer": "Generic",
+    "model": "RCD-2P-40-30",
+    "category": "Residual current",
+    "displayName": "RCD 2P 40A 30mA",
+    "type": "rcd",
+    "placementMode": "din_module",
+    "moduleWidth": 2,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "n-in", "label": "N in", "role": "neutral_in", "pole": "N", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" },
+      { "id": "n-out", "label": "N out", "role": "neutral_out", "pole": "N", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 40, "sensitivityMa": 30, "poles": 2, "requiresInput": true },
+    "visual": { "src": "/assets/components/rcd-2p.png", "widthModules": 2, "heightPx": 120 }
+  },
+  {
+    "id": "rcd-4p",
+    "manufacturer": "Generic",
+    "model": "RCD-4P-40-30",
+    "category": "Residual current",
+    "displayName": "RCD 4P",
+    "type": "rcd",
+    "placementMode": "din_module",
+    "moduleWidth": 4,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L1 in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l2-in", "label": "L2 in", "role": "power_in", "pole": "L2", "direction": "in" },
+      { "id": "l3-in", "label": "L3 in", "role": "power_in", "pole": "L3", "direction": "in" },
+      { "id": "n-in", "label": "N in", "role": "neutral_in", "pole": "N", "direction": "in" },
+      { "id": "l1-out", "label": "L1 out", "role": "power_out", "pole": "L1", "direction": "out" },
+      { "id": "l2-out", "label": "L2 out", "role": "power_out", "pole": "L2", "direction": "out" },
+      { "id": "l3-out", "label": "L3 out", "role": "power_out", "pole": "L3", "direction": "out" },
+      { "id": "n-out", "label": "N out", "role": "neutral_out", "pole": "N", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 40, "sensitivityMa": 30, "poles": 4, "requiresInput": true },
+    "visual": { "src": "/assets/components/rcd-4p.png", "widthModules": 4, "heightPx": 120 }
+  },
+  {
+    "id": "rcbo-1pn",
+    "manufacturer": "Generic",
+    "model": "RCBO-1PN-B16-30",
+    "category": "Residual current",
+    "displayName": "RCBO 1P+N",
+    "type": "rcbo",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "n-in", "label": "N in", "role": "neutral_in", "pole": "N", "direction": "in" },
+      { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" },
+      { "id": "n-out", "label": "N out", "role": "neutral_out", "pole": "N", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 16, "curve": "B", "sensitivityMa": 30, "poles": 2, "requiresInput": true },
+    "visual": { "src": "/assets/components/rcbo-1pn.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "spd-type2-4p",
+    "manufacturer": "Generic",
+    "model": "SPD-T2-4P",
+    "category": "Surge protection",
+    "displayName": "SPD type 2 4P",
+    "type": "spd",
+    "placementMode": "din_module",
+    "moduleWidth": 4,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L1", "role": "power_in", "pole": "L1", "direction": "bidirectional" },
+      { "id": "l2-in", "label": "L2", "role": "power_in", "pole": "L2", "direction": "bidirectional" },
+      { "id": "l3-in", "label": "L3", "role": "power_in", "pole": "L3", "direction": "bidirectional" },
+      { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "bidirectional" },
+      { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
+    ],
+    "electricalTemplate": { "poles": 4, "voltage": "230/400V", "requiresInput": true },
+    "visual": { "src": "/assets/components/spd-4p.png", "widthModules": 4, "heightPx": 120 }
+  },
+  {
+    "id": "main-switch-4p",
+    "manufacturer": "Generic",
+    "model": "ISOLATOR-4P-63",
+    "category": "Switching",
+    "displayName": "Main switch 4P",
+    "type": "main_switch",
+    "placementMode": "din_module",
+    "moduleWidth": 4,
+    "terminalsTemplate": [
+      { "id": "l1-in", "label": "L1 in", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "l2-in", "label": "L2 in", "role": "power_in", "pole": "L2", "direction": "in" },
+      { "id": "l3-in", "label": "L3 in", "role": "power_in", "pole": "L3", "direction": "in" },
+      { "id": "n-in", "label": "N in", "role": "neutral_in", "pole": "N", "direction": "in" },
+      { "id": "l1-out", "label": "L1 out", "role": "power_out", "pole": "L1", "direction": "out" },
+      { "id": "l2-out", "label": "L2 out", "role": "power_out", "pole": "L2", "direction": "out" },
+      { "id": "l3-out", "label": "L3 out", "role": "power_out", "pole": "L3", "direction": "out" },
+      { "id": "n-out", "label": "N out", "role": "neutral_out", "pole": "N", "direction": "out" }
+    ],
+    "electricalTemplate": { "ratedCurrentA": 63, "poles": 4, "requiresInput": false, "isMainSwitch": true },
+    "visual": { "src": "/assets/components/main-switch-4p.png", "widthModules": 4, "heightPx": 120 }
+  },
+  {
+    "id": "generic-n-bus-8",
+    "manufacturer": "Generic",
+    "model": "N Bus 8",
+    "category": "Busbars",
+    "displayName": "Neutral Busbar 8-way",
+    "type": "neutral_bus",
+    "placementMode": "free",
+    "moduleWidth": 8,
+    "terminalsTemplate": [
+      { "id": "n1", "label": "N1", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n2", "label": "N2", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n3", "label": "N3", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n4", "label": "N4", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n5", "label": "N5", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n6", "label": "N6", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n7", "label": "N7", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+      { "id": "n8", "label": "N8", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" }
+    ],
+    "electricalTemplate": { "busType": "N" },
+    "visual": { "src": "/assets/components/neutral-bus.png", "widthPx": 140, "heightPx": 28 }
+  },
+  {
+    "id": "generic-pe-bus-8",
+    "manufacturer": "Generic",
+    "model": "PE Bus 8",
+    "category": "Busbars",
+    "displayName": "PE Busbar 8-way",
+    "type": "pe_bus",
+    "placementMode": "free",
+    "moduleWidth": 8,
+    "terminalsTemplate": [
+      { "id": "pe1", "label": "PE1", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe2", "label": "PE2", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe3", "label": "PE3", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe4", "label": "PE4", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe5", "label": "PE5", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe6", "label": "PE6", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe7", "label": "PE7", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+      { "id": "pe8", "label": "PE8", "role": "earth", "pole": "PE", "direction": "bidirectional" }
+    ],
+    "electricalTemplate": { "busType": "PE" },
+    "visual": { "src": "/assets/components/pe-bus.png", "widthPx": 140, "heightPx": 28 }
+  },
+  {
+    "id": "blank-module",
+    "manufacturer": "Generic",
+    "model": "BLANK-1M",
+    "category": "Accessories",
+    "displayName": "Blank module",
+    "type": "blank",
+    "placementMode": "din_module",
+    "moduleWidth": 1,
+    "terminalsTemplate": [],
+    "electricalTemplate": {},
+    "visual": { "src": "/assets/components/blank.png", "widthModules": 1, "heightPx": 120 }
+  },
+  {
+    "id": "external-bulb",
+    "manufacturer": "Generic",
+    "model": "Lamp load",
+    "category": "Loads",
+    "displayName": "Bulb / lighting point",
+    "type": "bulb",
+    "placementMode": "free",
+    "moduleWidth": 4,
+    "terminalsTemplate": [
+      { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" }
+    ],
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N"] },
+    "visual": { "src": "/assets/components/bulb.png", "widthPx": 76, "heightPx": 76 }
+  },
+  {
+    "id": "external-outlet",
+    "manufacturer": "Generic",
+    "model": "Socket outlet",
+    "category": "Loads",
+    "displayName": "Standard electrical outlet",
+    "type": "outlet",
+    "placementMode": "free",
+    "moduleWidth": 5,
+    "terminalsTemplate": [
+      { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" },
+      { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
+    ],
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"] },
+    "visual": { "src": "/assets/components/outlet.png", "widthPx": 86, "heightPx": 86 }
+  }
+]
+

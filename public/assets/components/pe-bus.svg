@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="120" viewBox="0 0 72 120">
+  <rect x="0.5" y="0.5" width="71" height="119" rx="2" fill="#f8fafc" stroke="#8a96a8"/>
+  <rect x="8" y="37" width="56" height="24" rx="4" fill="#ddf5e7" stroke="#20a55a"/>
+  <circle cx="18" cy="49" r="4" fill="#ffffff" stroke="#20a55a"/>
+  <circle cx="30" cy="49" r="4" fill="#ffffff" stroke="#20a55a"/>
+  <circle cx="42" cy="49" r="4" fill="#ffffff" stroke="#20a55a"/>
+  <circle cx="54" cy="49" r="4" fill="#ffffff" stroke="#20a55a"/>
+  <path d="M19 70h34" stroke="#20a55a" stroke-width="2"/>
+  <path d="M25 75h22M31 80h10" stroke="#20a55a" stroke-width="2"/>
+  <text x="36" y="29" font-size="6" text-anchor="middle" font-family="Arial" fill="#157347">PE BUS</text>
+  <text x="36" y="107" font-size="4" text-anchor="middle" font-family="Arial" fill="#475467">earth</text>
+</svg>

@@ -1,0 +1,156 @@
+{
+  "board": {
+    "id": "demo-board",
+    "name": "Rozdzielnica mieszkania - demo",
+    "widthModulesPerRow": 24,
+    "supplyTerminals": [
+      { "id": "supply-l1", "label": "L1", "role": "power_source", "pole": "L1", "direction": "out", "position": { "x": 16, "y": 18 } },
+      { "id": "supply-l2", "label": "L2", "role": "power_source", "pole": "L2", "direction": "out", "position": { "x": 16, "y": 42 } },
+      { "id": "supply-l3", "label": "L3", "role": "power_source", "pole": "L3", "direction": "out", "position": { "x": 16, "y": 66 } },
+      { "id": "supply-n", "label": "N", "role": "neutral_source", "pole": "N", "direction": "out", "position": { "x": 16, "y": 90 } },
+      { "id": "supply-pe", "label": "PE", "role": "earth_source", "pole": "PE", "direction": "out", "position": { "x": 16, "y": 138 } }
+    ],
+    "rows": [
+      { "id": "row-1", "index": 0, "maxModules": 24 },
+      { "id": "row-2", "index": 1, "maxModules": 24 }
+    ]
+  },
+  "components": [
+    {
+      "id": "c-main",
+      "catalogItemId": "main-switch-4p",
+      "type": "main_switch",
+      "name": "Main switch 4P",
+      "moduleWidth": 4,
+      "placementMode": "din_module",
+      "terminals": [
+        { "id": "l1-in", "label": "L1 in", "role": "power_in", "pole": "L1", "direction": "in" },
+        { "id": "l2-in", "label": "L2 in", "role": "power_in", "pole": "L2", "direction": "in" },
+        { "id": "l3-in", "label": "L3 in", "role": "power_in", "pole": "L3", "direction": "in" },
+        { "id": "n-in", "label": "N in", "role": "neutral_in", "pole": "N", "direction": "in" },
+        { "id": "l1-out", "label": "L1 out", "role": "power_out", "pole": "L1", "direction": "out" },
+        { "id": "l2-out", "label": "L2 out", "role": "power_out", "pole": "L2", "direction": "out" },
+        { "id": "l3-out", "label": "L3 out", "role": "power_out", "pole": "L3", "direction": "out" },
+        { "id": "n-out", "label": "N out", "role": "neutral_out", "pole": "N", "direction": "out" }
+      ],
+      "electrical": { "ratedCurrentA": 63, "poles": 4, "requiresInput": false, "isMainSwitch": true },
+      "layout": { "placementMode": "din_module", "row": 0, "startModule": 2 }
+    },
+    {
+      "id": "c-rcd",
+      "catalogItemId": "rcd-2p-40a-30ma",
+      "type": "rcd",
+      "name": "RCD 2P 40A 30mA",
+      "moduleWidth": 2,
+      "placementMode": "din_module",
+      "terminals": [
+        { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+        { "id": "n-in", "label": "N in", "role": "neutral_in", "pole": "N", "direction": "in" },
+        { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" },
+        { "id": "n-out", "label": "N out", "role": "neutral_out", "pole": "N", "direction": "out" }
+      ],
+      "electrical": { "ratedCurrentA": 40, "sensitivityMa": 30, "poles": 2, "requiresInput": true },
+      "layout": { "placementMode": "din_module", "row": 0, "startModule": 7 }
+    },
+    {
+      "id": "c-lighting",
+      "catalogItemId": "mcb-1p-b16",
+      "type": "mcb",
+      "name": "Lighting MCB B16",
+      "moduleWidth": 1,
+      "placementMode": "din_module",
+      "terminals": [
+        { "id": "l1-in", "label": "L in", "role": "power_in", "pole": "L1", "direction": "in" },
+        { "id": "l1-out", "label": "L out", "role": "power_out", "pole": "L1", "direction": "out" }
+      ],
+      "electrical": { "ratedCurrentA": 16, "curve": "B", "poles": 1, "shortCircuitCapacityKa": 6, "requiresInput": true },
+      "layout": { "placementMode": "din_module", "row": 0, "startModule": 10 }
+    },
+    {
+      "id": "c-n-bus",
+      "catalogItemId": "generic-n-bus-8",
+      "type": "neutral_bus",
+      "name": "Neutral Busbar 8-way",
+      "moduleWidth": 8,
+      "placementMode": "free",
+      "terminals": [
+        { "id": "n1", "label": "N1", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n2", "label": "N2", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n3", "label": "N3", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n4", "label": "N4", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n5", "label": "N5", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n6", "label": "N6", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n7", "label": "N7", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" },
+        { "id": "n8", "label": "N8", "role": "neutral_bus", "pole": "N", "direction": "bidirectional" }
+      ],
+      "electrical": { "busType": "N" },
+      "layout": { "placementMode": "free", "x": 260, "y": 122 }
+    },
+    {
+      "id": "c-pe-bus",
+      "catalogItemId": "generic-pe-bus-8",
+      "type": "pe_bus",
+      "name": "PE Busbar 8-way",
+      "moduleWidth": 8,
+      "placementMode": "free",
+      "terminals": [
+        { "id": "pe1", "label": "PE1", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe2", "label": "PE2", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe3", "label": "PE3", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe4", "label": "PE4", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe5", "label": "PE5", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe6", "label": "PE6", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe7", "label": "PE7", "role": "earth", "pole": "PE", "direction": "bidirectional" },
+        { "id": "pe8", "label": "PE8", "role": "earth", "pole": "PE", "direction": "bidirectional" }
+      ],
+      "electrical": { "busType": "PE" },
+      "layout": { "placementMode": "free", "x": 260, "y": 152 }
+    },
+    {
+      "id": "c-bulb",
+      "catalogItemId": "external-bulb",
+      "type": "bulb",
+      "name": "Lighting point",
+      "moduleWidth": 4,
+      "placementMode": "free",
+      "terminals": [
+        { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
+        { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" }
+      ],
+      "electrical": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N"] },
+      "layout": { "placementMode": "free", "x": 800, "y": 10 }
+    },
+    {
+      "id": "c-outlet",
+      "catalogItemId": "external-outlet",
+      "type": "outlet",
+      "name": "Socket outlet",
+      "moduleWidth": 5,
+      "placementMode": "free",
+      "terminals": [
+        { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
+        { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" },
+        { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
+      ],
+      "electrical": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"] },
+      "layout": { "placementMode": "free", "x": 800, "y": 160 }
+    }
+  ],
+  "wires": [
+    { "id": "w-supply-main-l1", "from": { "kind": "board_terminal", "boardTerminalId": "supply-l1" }, "to": { "kind": "component_terminal", "componentId": "c-main", "terminalId": "l1-in" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "brown" } },
+    { "id": "w-supply-main-l2", "from": { "kind": "board_terminal", "boardTerminalId": "supply-l2" }, "to": { "kind": "component_terminal", "componentId": "c-main", "terminalId": "l2-in" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "black" } },
+    { "id": "w-supply-main-l3", "from": { "kind": "board_terminal", "boardTerminalId": "supply-l3" }, "to": { "kind": "component_terminal", "componentId": "c-main", "terminalId": "l3-in" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "grey" } },
+    { "id": "w-supply-main-n", "from": { "kind": "board_terminal", "boardTerminalId": "supply-n" }, "to": { "kind": "component_terminal", "componentId": "c-main", "terminalId": "n-in" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "blue" } },
+    { "id": "w-supply-pe-bus", "from": { "kind": "board_terminal", "boardTerminalId": "supply-pe" }, "to": { "kind": "component_terminal", "componentId": "c-pe-bus", "terminalId": "pe1" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "green/yellow" } },
+    { "id": "w-supply-n-bus", "from": { "kind": "board_terminal", "boardTerminalId": "supply-n" }, "to": { "kind": "component_terminal", "componentId": "c-n-bus", "terminalId": "n1" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "blue" } },
+    { "id": "w-main-rcd-l1", "from": { "kind": "component_terminal", "componentId": "c-main", "terminalId": "l1-out" }, "to": { "kind": "component_terminal", "componentId": "c-rcd", "terminalId": "l1-in" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "brown" } },
+    { "id": "w-main-rcd-n", "from": { "kind": "component_terminal", "componentId": "c-main", "terminalId": "n-out" }, "to": { "kind": "component_terminal", "componentId": "c-rcd", "terminalId": "n-in" }, "cable": { "crossSectionMm2": 10, "type": "H07V-K", "color": "blue" } },
+    { "id": "w-rcd-mcb-l1", "from": { "kind": "component_terminal", "componentId": "c-rcd", "terminalId": "l1-out" }, "to": { "kind": "component_terminal", "componentId": "c-lighting", "terminalId": "l1-in" }, "cable": { "crossSectionMm2": 2.5, "type": "H07V-K", "color": "brown" } },
+    { "id": "w-rcd-n-bus", "from": { "kind": "component_terminal", "componentId": "c-rcd", "terminalId": "n-out" }, "to": { "kind": "component_terminal", "componentId": "c-n-bus", "terminalId": "n2" }, "cable": { "crossSectionMm2": 2.5, "type": "H07V-K", "color": "blue" } },
+    { "id": "w-mcb-bulb-l", "from": { "kind": "component_terminal", "componentId": "c-lighting", "terminalId": "l1-out" }, "to": { "kind": "component_terminal", "componentId": "c-bulb", "terminalId": "l-in" }, "cable": { "crossSectionMm2": 2.5, "type": "YDYp", "color": "brown" } },
+    { "id": "w-nbus-bulb-n", "from": { "kind": "component_terminal", "componentId": "c-n-bus", "terminalId": "n3" }, "to": { "kind": "component_terminal", "componentId": "c-bulb", "terminalId": "n-in" }, "cable": { "crossSectionMm2": 2.5, "type": "YDYp", "color": "blue" } },
+    { "id": "w-mcb-outlet-l", "from": { "kind": "component_terminal", "componentId": "c-lighting", "terminalId": "l1-out" }, "to": { "kind": "component_terminal", "componentId": "c-outlet", "terminalId": "l-in" }, "cable": { "crossSectionMm2": 2.5, "type": "YDYp", "color": "brown" } },
+    { "id": "w-nbus-outlet-n", "from": { "kind": "component_terminal", "componentId": "c-n-bus", "terminalId": "n4" }, "to": { "kind": "component_terminal", "componentId": "c-outlet", "terminalId": "n-in" }, "cable": { "crossSectionMm2": 2.5, "type": "YDYp", "color": "blue" } },
+    { "id": "w-pebus-outlet-pe", "from": { "kind": "component_terminal", "componentId": "c-pe-bus", "terminalId": "pe2" }, "to": { "kind": "component_terminal", "componentId": "c-outlet", "terminalId": "pe" }, "cable": { "crossSectionMm2": 2.5, "type": "YDYp", "color": "green/yellow" } }
+  ]
+}
