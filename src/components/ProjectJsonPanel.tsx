@@ -48,7 +48,7 @@ export function ProjectJsonPanel() {
       </div>
 
       {open ? (
-        <div className="absolute right-0 top-11 z-50 w-[520px] rounded border border-[#b9c4d2] bg-white p-3 shadow-panel">
+        <div className="absolute right-0 top-11 z-50 w-[calc(100vw-24px)] max-w-[520px] rounded border border-[#b9c4d2] bg-white p-3 shadow-panel">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">JSON projektu</h2>
             {message ? <span className="text-xs text-[#667085]">{message}</span> : null}

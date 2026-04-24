@@ -332,15 +332,15 @@ export function BoardView() {
   }, [selectedItem, wires]);
 
   return (
-    <section className="min-w-0 overflow-auto bg-[#e7edf3] p-6">
-      <div className="mb-4 flex items-end justify-between">
-        <div>
+    <section className="h-full min-w-0 overflow-auto bg-[#e7edf3] p-3 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold">{board.name}</h2>
           <p className="text-xs text-[#667085]">
             {board.rows.length} rz. · {board.widthModulesPerRow} modułów w rzędzie
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded border border-[#b9c4d2] bg-white text-xs text-[#344054]">
             <button
               title="Pomniejsz widok"
@@ -372,7 +372,7 @@ export function BoardView() {
         </div>
       </div>
 
-      <div className="inline-block rounded bg-[#d9e1ea] p-5 shadow-panel">
+      <div className="inline-block rounded bg-[#d9e1ea] p-3 shadow-panel sm:p-5">
         <div style={{ width: workspaceWidth * boardZoom, height: boardHeight * boardZoom }}>
         <div
           className="relative overflow-visible rounded border border-[#a8b4c3] bg-[#eef3f8]"

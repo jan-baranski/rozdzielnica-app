@@ -5,7 +5,12 @@ import { findCatalogItem } from "@/domain/catalog";
 import { resolveEndpoint } from "@/domain/connectivityEngine";
 import { useBoardStore } from "@/store/useBoardStore";
 
-export function PropertiesPanel() {
+interface PropertiesPanelProps {
+  open: boolean;
+  onToggle: () => void;
+}
+
+export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
   const {
     board,
     components,
@@ -40,9 +45,39 @@ export function PropertiesPanel() {
     return resolved ? `${resolved.ownerName} / ${resolved.terminal.label}` : "Nieznany zacisk";
   };
 
+  if (!open) {
+    return (
+      <aside className="flex min-h-0 items-center justify-between border-t border-[#c8d1dc] bg-[#f8fafc] px-3 py-2 lg:h-full lg:flex-col lg:justify-start lg:border-l lg:border-t-0 lg:px-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={false}
+          aria-label="Rozwiń panel właściwości"
+          title="Rozwiń właściwości"
+          className="inline-flex h-8 items-center gap-2 rounded border border-[#c8d1dc] bg-white px-3 text-sm font-semibold text-[#172033] hover:bg-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:ring-offset-2 lg:h-9 lg:w-9 lg:justify-center lg:px-0"
+        >
+          <span aria-hidden="true">›</span>
+          <span className="lg:hidden">Właściwości</span>
+        </button>
+        <span className="text-xs text-[#667085] lg:hidden">Zwinięte</span>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="overflow-y-auto border-l border-[#c8d1dc] bg-[#f8fafc] p-4">
-      <h2 className="text-sm font-semibold">Właściwości</h2>
+    <aside className="max-h-[38vh] min-h-0 overflow-y-auto border-t border-[#c8d1dc] bg-[#f8fafc] p-4 lg:max-h-none lg:border-l lg:border-t-0">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">Właściwości</h2>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={true}
+          aria-label="Zwiń panel właściwości"
+          className="rounded border border-[#c8d1dc] bg-white px-2.5 py-1 text-xs font-medium hover:bg-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:ring-offset-2"
+        >
+          Zwiń
+        </button>
+      </div>
 
       <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
         <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Rozmiar rozdzielnicy</h3>

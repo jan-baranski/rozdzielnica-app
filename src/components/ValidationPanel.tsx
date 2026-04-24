@@ -19,8 +19,8 @@ export function ValidationPanel() {
 
   return (
     <>
-      <footer className="h-44 border-t border-[#c8d1dc] bg-white">
-        <div className="flex h-10 items-center justify-between border-b border-[#e3e8ef] px-5">
+      <footer className="flex h-44 flex-col border-t border-[#c8d1dc] bg-white">
+        <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-[#e3e8ef] px-3 py-2 sm:px-5">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold">Walidacja</h2>
             <button
@@ -30,7 +30,7 @@ export function ValidationPanel() {
               Opis walidacji
             </button>
           </div>
-          <div className="flex gap-2 text-xs">
+          <div className="flex flex-wrap gap-2 text-xs">
             <span className="rounded border border-[#f3b2aa] bg-[#fff4f2] px-2 py-0.5 text-[#b42318]">
               {errorCount} błędów
             </span>
@@ -40,9 +40,9 @@ export function ValidationPanel() {
           </div>
         </div>
 
-        <div className="grid h-[136px] grid-cols-2 gap-3 overflow-y-auto p-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 md:grid-cols-2">
           {validationResults.length === 0 ? (
-            <div className="col-span-2 rounded border border-[#badfcc] bg-[#f0fdf4] p-3 text-sm text-[#157347]">
+            <div className="rounded border border-[#badfcc] bg-[#f0fdf4] p-3 text-sm text-[#157347] md:col-span-2">
               Nie wykryto problemów walidacji.
             </div>
           ) : (
