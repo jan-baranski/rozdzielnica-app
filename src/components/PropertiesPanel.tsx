@@ -8,9 +8,10 @@ import { useBoardStore } from "@/store/useBoardStore";
 interface PropertiesPanelProps {
   open: boolean;
   onToggle: () => void;
+  onClose: () => void;
 }
 
-export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
+export function PropertiesPanel({ open, onToggle, onClose }: PropertiesPanelProps) {
   const {
     board,
     components,
@@ -84,7 +85,10 @@ export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
           <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Akcje</h3>
           {selectedComponent ? (
             <button
-              onClick={() => removeComponent(selectedComponent.id)}
+              onClick={() => {
+                removeComponent(selectedComponent.id);
+                onClose();
+              }}
               className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
             >
               Usuń aparat
@@ -92,7 +96,10 @@ export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
           ) : null}
           {selectedWire ? (
             <button
-              onClick={() => removeWire(selectedWire.id)}
+              onClick={() => {
+                removeWire(selectedWire.id);
+                onClose();
+              }}
               className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
             >
               Usuń przewód

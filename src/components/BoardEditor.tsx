@@ -108,7 +108,11 @@ export function BoardEditor() {
       <div className={editorGridClass}>
         <ComponentLibrary className="hidden h-full lg:block" />
         <BoardView />
-        <PropertiesPanel open={isPropertiesOpen} onToggle={() => setIsPropertiesOpen((value) => !value)} />
+        <PropertiesPanel
+          open={isPropertiesOpen}
+          onToggle={() => setIsPropertiesOpen((value) => !value)}
+          onClose={() => setIsPropertiesOpen(false)}
+        />
       </div>
 
       <ValidationPanel />
