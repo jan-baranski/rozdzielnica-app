@@ -110,6 +110,8 @@ export const validationDocs: ValidationDoc[] = [
     title: "Walidacja przewodu N",
     issueCodes: [
       "N_BUS_SHARED_BY_RCDS",
+      "N_BUS_BYPASSES_RCD",
+      "N_BUS_MIXES_RCD_AND_SUPPLY",
       "LOAD_NEUTRAL_MISSING",
       "LOAD_NEUTRAL_CIRCUIT_MISMATCH",
       "N_CONNECTED_BEFORE_RCD",
@@ -120,10 +122,12 @@ export const validationDocs: ValidationDoc[] = [
     examples: [
       "Faza za RCD i N na listwie tego samego RCD -> OK",
       "Faza za RCD A, a N za RCD B -> Błąd",
+      "Listwa N podłączona jednocześnie do zasilania i wyjścia N RCD -> Błąd",
       "Dwa RCD podłączone do jednej listwy N -> Błąd"
     ],
     rulesSummary: [
       "Obwód za RCD powinien mieć N za tym samym RCD albo na listwie N przypisanej do niego.",
+      "Listwa N używana przez obwody za RCD nie może być zasilana bezpośrednio z wejścia N.",
       "Kilka RCD powinno mieć oddzielne listwy N po stronie wyjściowej.",
       "Odbiornik z podłączoną fazą powinien mieć przypisany właściwy przewód N."
     ],
@@ -141,17 +145,20 @@ export const validationDocs: ValidationDoc[] = [
       "CIRCUIT_PE_CONTINUITY",
       "CIRCUIT_MISSING_BREAKER",
       "CIRCUIT_MISSING_RCD",
-      "CIRCUIT_RCD_MISMATCH"
+      "CIRCUIT_RCD_MISMATCH",
+      "CIRCUIT_L_MULTIPLE_PATHS"
     ],
     description:
       "Sprawdza, czy odbiorniki mają poprawny tor L, N i PE, czy L przechodzi przez zabezpieczenie nadprądowe oraz czy L i N są chronione tym samym RCD/RCBO.",
     examples: [
       "Odbiornik L/N/PE za RCD i MCB -> OK",
       "Odbiornik podłączony bez MCB/RCBO -> Błąd",
+      "Odbiornik z dodatkowym L bezpośrednio z zasilania -> Błąd",
       "L za RCD A, a N za RCD B -> Błąd"
     ],
     rulesSummary: [
       "Tor L musi mieć ciągłość do zasilania i przechodzić przez MCB/RCBO.",
+      "Każda ścieżka L do zasilania musi przechodzić przez ten sam MCB/RCBO i RCD/RCBO.",
       "Tor L zwykłego obwodu końcowego musi przechodzić przez RCD/RCBO.",
       "Tor N musi mieć ciągłość do zasilania i przechodzić przez ten sam RCD co L.",
       "Tor PE jest wymagany tylko dla odbiorników, które deklarują PE."

@@ -182,6 +182,20 @@ function buildElectricalGraph(
             );
           });
       });
+
+    component.terminals
+      .filter((terminal) => terminal.direction === "bidirectional")
+      .forEach((left, index, terminals) => {
+        terminals.slice(index + 1).forEach((right) => {
+          if (left.pole === right.pole) {
+            addGraphEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, left.id)),
+              endpointKey(terminalEndpoint(component.id, right.id))
+            );
+          }
+        });
+      });
   });
 
   project.board.supplyTerminals.forEach((terminal) => {
@@ -295,8 +309,21 @@ function hasReachableRole(
 
 export const neutralRcdCircuitPolicy: ValidationPolicy = (project) => {
   const issues: ValidationIssue[] = [];
+  const seen = new Set<string>();
   const meta = endpointMeta(project);
   const graphWithoutRcdInternals = buildElectricalGraph(project, { omitRcdInternals: true });
+
+  function addNeutralIssue(issue: ValidationIssue) {
+    const key = [
+      issue.code,
+      issue.relatedComponents?.join(",") ?? "",
+      issue.relatedWires?.join(",") ?? ""
+    ].join("|");
+    if (!seen.has(key)) {
+      seen.add(key);
+      issues.push(issue);
+    }
+  }
 
   project.components
     .filter((component) => component.type === "neutral_bus")
@@ -390,6 +417,71 @@ export const neutralRcdCircuitPolicy: ValidationPolicy = (project) => {
       });
     });
 
+  project.components
+    .filter((component) => component.type === "neutral_bus")
+    .forEach((bus) => {
+      const busReachable = new Set<string>();
+      const rcdIds = new Set<string>();
+      bus.terminals.forEach((terminal) => {
+        const key = endpointKey(terminalEndpoint(bus.id, terminal.id));
+        reachableKeys(key, graphWithoutRcdInternals, meta, new Set<Pole>(["N"])).forEach((reachableKey) =>
+          busReachable.add(reachableKey)
+        );
+        connectedRcdOutputs(key, project, graphWithoutRcdInternals, meta, "neutral").forEach((id) => rcdIds.add(id));
+      });
+
+      const hasDirectSupplyNeutral = hasReachableBoardRole(busReachable, meta, "neutral_source");
+      if (hasDirectSupplyNeutral && rcdIds.size > 0) {
+        addNeutralIssue({
+          severity: "error",
+          code: "N_BUS_MIXES_RCD_AND_SUPPLY",
+          message: "Szyna N jest podłączona jednocześnie do zasilania i do wyjścia N RCD.",
+          relatedComponents: [bus.id, ...rcdIds],
+          suggestion: "Rozdziel N przed RCD od listwy N zasilanej z wyjścia tego RCD."
+        });
+      }
+
+      if (!hasDirectSupplyNeutral) {
+        return;
+      }
+
+      const affectedComponents = new Set<string>();
+      const affectedRcds = new Set<string>();
+      project.components
+        .filter((component) => component.electrical.externalLoad)
+        .forEach((loadComponent) => {
+          const neutralTerminal = loadComponent.terminals.find((terminal) => terminal.pole === "N");
+          const liveTerminal = loadComponent.terminals.find((terminal) => terminal.pole.startsWith("L"));
+          if (!neutralTerminal || !liveTerminal) {
+            return;
+          }
+
+          const neutralKey = endpointKey(terminalEndpoint(loadComponent.id, neutralTerminal.id));
+          if (!busReachable.has(neutralKey)) {
+            return;
+          }
+
+          const liveKey = endpointKey(terminalEndpoint(loadComponent.id, liveTerminal.id));
+          const liveRcds = connectedRcdOutputs(liveKey, project, graphWithoutRcdInternals, meta, "live");
+          if (liveRcds.size === 0) {
+            return;
+          }
+
+          affectedComponents.add(loadComponent.id);
+          liveRcds.forEach((id) => affectedRcds.add(id));
+        });
+
+      if (affectedComponents.size > 0) {
+        addNeutralIssue({
+          severity: "error",
+          code: "N_BUS_BYPASSES_RCD",
+          message: "Szyna N jest podłączona bezpośrednio do zasilania, mimo że obwody korzystają z RCD.",
+          relatedComponents: [bus.id, ...affectedComponents, ...affectedRcds],
+          suggestion: "Zasil listwę N z wyjścia N tego samego RCD, przez który przechodzi tor L obwodu."
+        });
+      }
+    });
+
   return issues;
 };
 
@@ -427,13 +519,99 @@ function relatedLoadWireIds(componentId: string, wires: ProjectData["wires"]) {
     .map((wire) => wire.id);
 }
 
+type LiveSupplyPath = {
+  keys: string[];
+  breakerIds: Set<string>;
+  rcdIds: Set<string>;
+};
+
+function isLiveSource(metaItem: EndpointMeta | undefined) {
+  return metaItem?.endpoint.kind === "board_terminal" && metaItem.role === "power_source";
+}
+
+function analyzeLiveSupplyPath(keys: string[], meta: Map<string, EndpointMeta>): LiveSupplyPath {
+  const breakerIds = new Set<string>();
+  const rcdIds = new Set<string>();
+
+  keys.forEach((key) => {
+    const item = meta.get(key);
+    const component = item?.component;
+    if (!item || !component || item.role !== "power_out") {
+      return;
+    }
+
+    if (component.type === "mcb" || component.type === "rcbo") {
+      breakerIds.add(component.id);
+    }
+    if (component.type === "rcd" || component.type === "rcbo") {
+      rcdIds.add(component.id);
+    }
+  });
+
+  return { keys, breakerIds, rcdIds };
+}
+
+function findLiveSupplyPaths(
+  startKey: string,
+  graph: Map<string, Set<string>>,
+  meta: Map<string, EndpointMeta>
+): LiveSupplyPath[] {
+  const paths: LiveSupplyPath[] = [];
+  const stack: Array<{ key: string; path: string[]; visited: Set<string> }> = [
+    { key: startKey, path: [startKey], visited: new Set([startKey]) }
+  ];
+  const maxPaths = 64;
+  const maxDepth = 80;
+
+  while (stack.length > 0 && paths.length < maxPaths) {
+    const current = stack.pop();
+    if (!current || current.path.length > maxDepth) {
+      continue;
+    }
+
+    const currentMeta = meta.get(current.key);
+    if (!currentMeta || !currentMeta.pole.startsWith("L")) {
+      continue;
+    }
+
+    if (isLiveSource(currentMeta)) {
+      paths.push(analyzeLiveSupplyPath(current.path, meta));
+      continue;
+    }
+
+    graph.get(current.key)?.forEach((next) => {
+      const nextMeta = meta.get(next);
+      if (!nextMeta || !nextMeta.pole.startsWith("L") || current.visited.has(next)) {
+        return;
+      }
+
+      stack.push({
+        key: next,
+        path: [...current.path, next],
+        visited: new Set([...current.visited, next])
+      });
+    });
+  }
+
+  return paths;
+}
+
+function unionPathIds(paths: LiveSupplyPath[], field: "breakerIds" | "rcdIds") {
+  const ids = new Set<string>();
+  paths.forEach((path) => path[field].forEach((id) => ids.add(id)));
+  return ids;
+}
+
+function distinctLivePathFirstHops(paths: LiveSupplyPath[]) {
+  return new Set(paths.map((path) => path.keys[1]).filter(Boolean));
+}
+
 export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
   const issues: ValidationIssue[] = [];
   const seen = new Set<string>();
   const meta = endpointMeta(project);
   const fullGraph = buildElectricalGraph(project);
   const graphWithoutRcdInternals = buildElectricalGraph(project, { omitRcdInternals: true });
-  const graphWithoutBreakerInternals = buildElectricalGraph(project, { omitBreakerInternals: true });
   const connected = connectedEndpointKeys(project.wires);
 
   function addIssue(issue: ValidationIssue) {
@@ -470,13 +648,13 @@ export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
       const liveReachable = liveKey
         ? reachableKeys(liveKey, fullGraph, meta, new Set<Pole>(["L1", "L2", "L3"]))
         : new Set<string>();
-      const liveHasSource = hasReachableBoardRole(liveReachable, meta, "power_source");
-      const liveBreakers = liveKey
-        ? connectedBreakerOutputs(liveKey, project, graphWithoutBreakerInternals, meta)
-        : new Set<string>();
-      const liveRcds = liveKey
-        ? connectedRcdOutputs(liveKey, project, graphWithoutRcdInternals, meta, "live")
-        : new Set<string>();
+      const livePaths = liveKey ? findLiveSupplyPaths(liveKey, fullGraph, meta) : [];
+      const liveHasSource = livePaths.length > 0 || hasReachableBoardRole(liveReachable, meta, "power_source");
+      const liveBreakers = unionPathIds(livePaths, "breakerIds");
+      const liveRcds = unionPathIds(livePaths, "rcdIds");
+      const hasLivePathWithoutBreaker = livePaths.some((path) => path.breakerIds.size === 0);
+      const hasLivePathWithoutRcd = livePaths.some((path) => path.rcdIds.size === 0);
+      const livePathFirstHops = distinctLivePathFirstHops(livePaths);
 
       if (!liveTerminal || !connected.has(liveKey) || !liveHasSource) {
         addIssue({
@@ -489,7 +667,7 @@ export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
         });
       }
 
-      if (liveTerminal && connected.has(liveKey) && liveBreakers.size === 0) {
+      if (liveTerminal && connected.has(liveKey) && (liveBreakers.size === 0 || hasLivePathWithoutBreaker)) {
         addIssue({
           severity: "error",
           code: "CIRCUIT_MISSING_BREAKER",
@@ -500,7 +678,7 @@ export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
         });
       }
 
-      if (liveTerminal && connected.has(liveKey) && liveRcds.size === 0) {
+      if (liveTerminal && connected.has(liveKey) && (liveRcds.size === 0 || hasLivePathWithoutRcd)) {
         addIssue({
           severity: "error",
           code: "CIRCUIT_MISSING_RCD",
@@ -508,6 +686,17 @@ export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
           relatedComponents: [loadComponent.id, ...liveBreakers],
           relatedWires: loadWireIds,
           suggestion: "Poprowadz obwod koncowy przez RCD albo RCBO."
+        });
+      }
+
+      if (liveTerminal && connected.has(liveKey) && (livePathFirstHops.size > 1 || liveBreakers.size > 1 || liveRcds.size > 1)) {
+        addIssue({
+          severity: "error",
+          code: "CIRCUIT_L_MULTIPLE_PATHS",
+          message: `Odbiornik "${loadComponent.name}" ma niepoprawne dodatkowe zasilanie L: jedna ze sciezek omija MCB/RCD albo pochodzi z innego zabezpieczenia.`,
+          relatedComponents: [loadComponent.id, ...liveBreakers, ...liveRcds],
+          relatedWires: loadWireIds,
+          suggestion: "Zostaw jedna sciezke L do odbiornika, prowadzona przez ten sam MCB/RCBO i RCD/RCBO."
         });
       }
 

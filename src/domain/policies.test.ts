@@ -329,6 +329,109 @@ describe("validation policies", () => {
     expect(issues).toHaveLength(0);
   });
 
+  it("errors when a bulb has a correct L path and an extra direct supply L path", () => {
+    const project = completeCircuitProject(bulbLoad("bulb-a"));
+    const issues = circuitCompletenessPolicy({
+      ...project,
+      wires: [
+        ...project.wires,
+        wire(boardEndpoint("supply-l1"), componentEndpoint("bulb-a", "l-in"), "extra-direct-l")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_L_MULTIPLE_PATHS")).toBe(true);
+    expect(issues.some((issue) => issue.code === "CIRCUIT_MISSING_BREAKER")).toBe(true);
+    expect(issues.some((issue) => issue.code === "CIRCUIT_MISSING_RCD")).toBe(true);
+  });
+
+  it("errors when one bulb is fed by B10 and B16 at the same time", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("b10", 3, 10, "B"), mcb("b16", 4, 16, "B"), nBus("n-a"), bulbLoad("bulb-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "supply-rcd-l"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("rcd-a", "n-in"), "supply-rcd-n"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"),
+        wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b10-bulb"),
+        wire(componentEndpoint("b16", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b16-bulb"),
+        wire(componentEndpoint("rcd-a", "n-out"), componentEndpoint("n-a", "n1"), "rcd-bus-n"),
+        wire(componentEndpoint("n-a", "n2"), componentEndpoint("bulb-a", "n-in"), "bus-bulb-n")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_L_MULTIPLE_PATHS")).toBe(true);
+  });
+
+  it("errors when one bulb is fed through two different RCDs", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [
+        rcd("rcd-a"),
+        rcd("rcd-b", 2),
+        mcb("b10", 4, 10, "B"),
+        mcb("b16", 5, 16, "B"),
+        nBus("n-a"),
+        bulbLoad("bulb-a")
+      ],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "supply-rcd-a-l"),
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-b", "l1-in"), "supply-rcd-b-l"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("rcd-a", "n-in"), "supply-rcd-a-n"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-a-b10"),
+        wire(componentEndpoint("rcd-b", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b-b16"),
+        wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b10-bulb"),
+        wire(componentEndpoint("b16", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b16-bulb"),
+        wire(componentEndpoint("rcd-a", "n-out"), componentEndpoint("n-a", "n1"), "rcd-a-bus-n"),
+        wire(componentEndpoint("n-a", "n2"), componentEndpoint("bulb-a", "n-in"), "bus-bulb-n")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_L_MULTIPLE_PATHS")).toBe(true);
+  });
+
+  it("accepts one B10 branching to two bulbs after the breaker", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("b10", 3, 10, "B"), terminalBlock("joint-a"), nBus("n-a"), bulbLoad("bulb-a"), bulbLoad("bulb-b")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "supply-rcd-l"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("rcd-a", "n-in"), "supply-rcd-n"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"),
+        wire(componentEndpoint("b10", "l1-out"), componentEndpoint("joint-a", "l1"), "b10-joint"),
+        wire(componentEndpoint("joint-a", "l2"), componentEndpoint("bulb-a", "l-in"), "joint-bulb-a"),
+        wire(componentEndpoint("joint-a", "l3"), componentEndpoint("bulb-b", "l-in"), "joint-bulb-b"),
+        wire(componentEndpoint("rcd-a", "n-out"), componentEndpoint("n-a", "n1"), "rcd-bus-n"),
+        wire(componentEndpoint("n-a", "n2"), componentEndpoint("bulb-a", "n-in"), "bus-bulb-a-n"),
+        wire(componentEndpoint("n-a", "n3"), componentEndpoint("bulb-b", "n-in"), "bus-bulb-b-n")
+      ]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("finds a bad extra L path even when the L graph contains a loop", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("b10", 3, 10, "B"), terminalBlock("joint-a"), terminalBlock("joint-b"), nBus("n-a"), bulbLoad("bulb-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "supply-rcd-l"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("rcd-a", "n-in"), "supply-rcd-n"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"),
+        wire(componentEndpoint("b10", "l1-out"), componentEndpoint("joint-a", "l1"), "b10-joint-a"),
+        wire(componentEndpoint("joint-a", "l2"), componentEndpoint("joint-b", "l1"), "joint-loop-a"),
+        wire(componentEndpoint("joint-b", "l2"), componentEndpoint("joint-a", "l3"), "joint-loop-b"),
+        wire(componentEndpoint("joint-b", "l3"), componentEndpoint("bulb-a", "l-in"), "joint-bulb"),
+        wire(boardEndpoint("supply-l1"), componentEndpoint("bulb-a", "l-in"), "extra-direct-l"),
+        wire(componentEndpoint("rcd-a", "n-out"), componentEndpoint("n-a", "n1"), "rcd-bus-n"),
+        wire(componentEndpoint("n-a", "n2"), componentEndpoint("bulb-a", "n-in"), "bus-bulb-n")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_L_MULTIPLE_PATHS")).toBe(true);
+    expect(issues.some((issue) => issue.code === "CIRCUIT_MISSING_BREAKER")).toBe(true);
+  });
+
   it("errors when a B16 MCB is wired with less than 2.5 mm2 cable", () => {
     const issues = cableGaugePolicy({
       board: testBoard,
@@ -676,6 +779,16 @@ describe("validation policies", () => {
     expect(issues).toHaveLength(0);
   });
 
+  it("accepts an N bus supplied from the RCD N output for a load behind that RCD", () => {
+    const issues = neutralRcdCircuitPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), nBus("n-a"), mcb("mcb-a"), externalLoad("load-a")],
+      wires: protectedCircuit("rcd-a", "n-a", "mcb-a", "load-a", "a")
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
   it("accepts two RCDs with separate N buses", () => {
     const issues = neutralRcdCircuitPolicy({
       board: testBoard,
@@ -709,6 +822,51 @@ describe("validation policies", () => {
     });
 
     expect(issues[0].code).toBe("N_BUS_SHARED_BY_RCDS");
+  });
+
+  it("errors when an N bus is supplied directly from supply while serving a load whose L is behind RCD", () => {
+    const issues = neutralRcdCircuitPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), nBus("n-bypass"), mcb("mcb-a"), externalLoad("load-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "l-supply"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("mcb-a", "l1-in"), "l-rcd-mcb"),
+        wire(componentEndpoint("mcb-a", "l1-out"), componentEndpoint("load-a", "l-in"), "l-load"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("n-bypass", "n1"), "n-supply-bus"),
+        wire(componentEndpoint("n-bypass", "n2"), componentEndpoint("load-a", "n-in"), "n-bus-load")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "N_BUS_BYPASSES_RCD")).toBe(true);
+  });
+
+  it("errors when one N bus is connected to supply N and RCD N output at the same time", () => {
+    const issues = neutralRcdCircuitPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), nBus("n-mixed")],
+      wires: [
+        wire(boardEndpoint("supply-n"), componentEndpoint("n-mixed", "n1"), "supply-bus"),
+        wire(componentEndpoint("rcd-a", "n-out"), componentEndpoint("n-mixed", "n2"), "rcd-bus")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "N_BUS_MIXES_RCD_AND_SUPPLY")).toBe(true);
+  });
+
+  it("does not report the N-bus bypass rule for a circuit without RCD", () => {
+    const issues = neutralRcdCircuitPolicy({
+      board: testBoard,
+      components: [nBus("n-a"), mcb("mcb-a"), externalLoad("load-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("mcb-a", "l1-in"), "l-supply-mcb"),
+        wire(componentEndpoint("mcb-a", "l1-out"), componentEndpoint("load-a", "l-in"), "l-load"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("n-a", "n1"), "n-supply-bus"),
+        wire(componentEndpoint("n-a", "n2"), componentEndpoint("load-a", "n-in"), "n-bus-load")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "N_BUS_BYPASSES_RCD")).toBe(false);
+    expect(issues.some((issue) => issue.code === "N_BUS_MIXES_RCD_AND_SUPPLY")).toBe(false);
   });
 
   it("errors when phase is behind RCD but N is connected before RCD", () => {
