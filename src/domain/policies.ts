@@ -436,7 +436,7 @@ function buildCableGaugeGraph(project: ProjectData, protectiveDeviceId: string) 
       return;
     }
 
-    if (isProtectiveBreaker(component) && component.id !== protectiveDeviceId) {
+    if (isProtectiveBreaker(component)) {
       return;
     }
 
@@ -549,6 +549,10 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
         const crossesIntoOtherBreaker =
           edgeComponent && isProtectiveBreaker(edgeComponent) && edgeComponent.id !== protectiveDevice.id;
 
+        if (crossesIntoOtherBreaker) {
+          return;
+        }
+
         if (edge.wire && edge.wire.cable.crossSectionMm2 < minimumCrossSection) {
           const issueKey = `${protectiveDevice.id}:${edge.wire.id}`;
           if (!seen.has(issueKey)) {
@@ -599,7 +603,7 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
           }
         }
 
-        if (!visited.has(edge.to) && !crossesIntoOtherBreaker) {
+        if (!visited.has(edge.to)) {
           queue.push({ key: edge.to, depth: currentNode.depth + 1 });
         }
       });

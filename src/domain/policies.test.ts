@@ -254,6 +254,50 @@ describe("validation policies", () => {
     expect(issues).toHaveLength(0);
   });
 
+  it("keeps parallel B10 and B16 circuits behind one RCD separate for cable sizing", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("b10", 3, 10, "B"), mcb("b16", 4, 16, "B"), bulbLoad("bulb-a"), genericOutlet("outlet-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"), 1.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), 2.5),
+        withCrossSection(wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b10-bulb"), 1.5),
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in"), "b16-outlet"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("reports only the B16 output when parallel B10 and B16 circuits use 1.5 mm2 downstream wires", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("b10", 3, 10, "B"), mcb("b16", 4, 16, "B"), bulbLoad("bulb-a"), genericOutlet("outlet-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"), 1.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), 1.5),
+        withCrossSection(wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b10-bulb"), 1.5),
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in"), "b16-outlet"), 1.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["b16-outlet"]);
+  });
+
+  it("does not classify an undersized RCD-to-MCB feed as a final B16 circuit wire", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("b16", 4, 16, "B"), genericOutlet("outlet-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), 1.5),
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in"), "b16-outlet"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
   it("detects a C20 circuit that drops from 4 mm2 to 2.5 mm2 after a distribution block", () => {
     const issues = cableGaugePolicy({
       board: testBoard,
