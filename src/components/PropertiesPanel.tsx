@@ -13,6 +13,7 @@ export function PropertiesPanel() {
     selectedItem,
     updateBoardSize,
     updateComponentName,
+    updateComponentElectrical,
     removeComponent,
     removeWire,
     updateWireCable,
@@ -127,6 +128,24 @@ export function PropertiesPanel() {
 
           <section className="rounded border border-[#d4dce7] bg-white p-4">
             <h3 className="mb-2 text-xs font-semibold uppercase text-[#667085]">Parametry elektryczne</h3>
+            {selectedComponent.electrical.externalLoad ? (
+              <label className="mb-3 block text-xs font-semibold text-[#667085]" htmlFor="component-current">
+                Prad odbiornika A
+                <input
+                  id="component-current"
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                  value={selectedComponent.electrical.currentA ?? 16}
+                  onChange={(event) =>
+                    updateComponentElectrical(selectedComponent.id, {
+                      currentA: Math.max(0.1, Number(event.target.value) || 0.1)
+                    })
+                  }
+                  className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
+                />
+              </label>
+            ) : null}
             <dl className="space-y-1 text-xs">
               {Object.entries(selectedComponent.electrical).map(([key, value]) => (
                 <div key={key} className="flex justify-between gap-3">

@@ -10,7 +10,8 @@ const designationPrefixes: Record<BoardComponent["type"], string> = {
   pe_bus: "XPE",
   blank: "A",
   bulb: "EL",
-  outlet: "XS"
+  outlet: "XS",
+  custom_load: "EL"
 };
 
 function componentSortKey(component: BoardComponent): string {

@@ -31,7 +31,8 @@ export const electricalSchema = z.object({
   isMainSwitch: z.boolean().optional(),
   busType: z.enum(["N", "PE"]).optional(),
   externalLoad: z.boolean().optional(),
-  requiredPoles: z.array(z.enum(["L1", "L2", "L3", "N", "PE"])).optional()
+  requiredPoles: z.array(z.enum(["L1", "L2", "L3", "N", "PE"])).optional(),
+  currentA: z.number().positive().optional()
 });
 
 export const catalogItemSchema = z.object({
@@ -40,7 +41,19 @@ export const catalogItemSchema = z.object({
   model: z.string(),
   category: z.string(),
   displayName: z.string(),
-  type: z.enum(["mcb", "rcd", "rcbo", "spd", "main_switch", "neutral_bus", "pe_bus", "blank", "bulb", "outlet"]),
+  type: z.enum([
+    "mcb",
+    "rcd",
+    "rcbo",
+    "spd",
+    "main_switch",
+    "neutral_bus",
+    "pe_bus",
+    "blank",
+    "bulb",
+    "outlet",
+    "custom_load"
+  ]),
   placementMode: z.enum(["din_module", "free"]),
   moduleWidth: z.number().int().positive(),
   terminalsTemplate: z.array(terminalSchema),

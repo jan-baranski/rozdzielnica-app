@@ -284,7 +284,7 @@
       { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
       { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" }
     ],
-    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N"] },
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N"], "currentA": 1 },
     "visual": { "src": "/assets/components/bulb.png", "widthPx": 76, "heightPx": 76 }
   },
   {
@@ -301,8 +301,24 @@
       { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" },
       { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
     ],
-    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"] },
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"], "currentA": 16 },
+    "visual": { "src": "/assets/components/outlet.png", "widthPx": 86, "heightPx": 86 }
+  },
+  {
+    "id": "custom-load",
+    "manufacturer": "Generic",
+    "model": "CUSTOM-LOAD",
+    "category": "Loads",
+    "displayName": "Custom odbiornik",
+    "type": "custom_load",
+    "placementMode": "free",
+    "moduleWidth": 5,
+    "terminalsTemplate": [
+      { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
+      { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" },
+      { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
+    ],
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"], "currentA": 16 },
     "visual": { "src": "/assets/components/outlet.png", "widthPx": 86, "heightPx": 86 }
   }
 ]
-

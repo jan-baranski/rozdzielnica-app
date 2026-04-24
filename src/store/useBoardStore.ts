@@ -38,6 +38,7 @@ interface BoardState extends ProjectData {
   addComponent: (item: CatalogItem, layout: BoardComponent["layout"]) => void;
   moveComponent: (componentId: string, layout: BoardComponent["layout"]) => void;
   updateComponentName: (componentId: string, name: string) => void;
+  updateComponentElectrical: (componentId: string, electrical: Partial<BoardComponent["electrical"]>) => void;
   removeComponent: (componentId: string) => void;
   selectItem: (item: SelectedItem) => void;
   clickTerminal: (endpoint: WireEndpoint) => void;
@@ -194,6 +195,20 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         board: state.board,
         components: state.components.map((component) =>
           component.id === componentId ? { ...component, name } : component
+        ),
+        wires: state.wires
+      })
+    );
+  },
+
+  updateComponentElectrical: (componentId, electrical) => {
+    set((state) =>
+      withValidation({
+        board: state.board,
+        components: state.components.map((component) =>
+          component.id === componentId
+            ? { ...component, electrical: { ...component.electrical, ...electrical } }
+            : component
         ),
         wires: state.wires
       })

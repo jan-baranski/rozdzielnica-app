@@ -44,12 +44,13 @@ export const peConnectionPolicy: ValidationPolicy = ({ board, components, wires 
           {
             severity: "error" as const,
             code: "PE_CONNECTED_TO_NON_EARTH",
-            message: "Zacisk PE jest połączony z zaciskiem innym niż ochronny.",
+            message: "Zacisk PE jest polaczony z zaciskiem innym niz ochronny.",
             relatedComponents: [
               from.ownerKind === "component" ? from.ownerId : "",
               to.ownerKind === "component" ? to.ownerId : ""
             ].filter(Boolean),
-            suggestion: "Przenieś to połączenie na zacisk PE."
+            relatedWires: [wire.id],
+            suggestion: "Przenies to polaczenie na zacisk PE."
           }
         ]
       : [];
@@ -70,12 +71,13 @@ export const neutralConnectionPolicy: ValidationPolicy = ({ board, components, w
           {
             severity: "warning" as const,
             code: "N_CONNECTED_TO_NON_NEUTRAL",
-            message: "Zacisk N jest połączony z zaciskiem innego bieguna.",
+            message: "Zacisk N jest polaczony z zaciskiem innego bieguna.",
             relatedComponents: [
               from.ownerKind === "component" ? from.ownerId : "",
               to.ownerKind === "component" ? to.ownerId : ""
             ].filter(Boolean),
-            suggestion: "Sprawdź, czy przewód neutralny trafia wyłącznie na zaciski N."
+            relatedWires: [wire.id],
+            suggestion: "Sprawdz, czy przewod neutralny trafia wylacznie na zaciski N."
           }
         ]
       : [];
@@ -376,18 +378,6 @@ function minimumCrossSectionForBreaker(current: number): number {
   return 6;
 }
 
-/*
-            message: `Obwód ${protectiveDevice.electrical.curve ?? ""}${current} jest podłączony przewodem o przekroju mniejszym niż ${minimumCrossSection} mm².`,
-            relatedWires: [wire.id],
-            suggestion: `Zwiększ przekrój przewodu do co najmniej ${minimumCrossSection} mm² albo zmień zabezpieczenie.`
-          }
-        ]
-      : [];
-  });
-
-void legacyCableGaugePolicy;
-*/
-
 type CableGaugeEdge = {
   to: string;
   wire?: WireConnection;
@@ -407,6 +397,26 @@ function addCableGaugeEdge(graph: Map<string, CableGaugeEdge[]>, a: string, b: s
 
 function isProtectiveBreaker(component: BoardComponent): boolean {
   return (component.type === "mcb" || component.type === "rcbo") && Boolean(component.electrical.ratedCurrentA);
+}
+
+function loadCurrentA(component: BoardComponent): number {
+  return component.electrical.currentA ?? 16;
+}
+
+function maximumCurrentForCrossSection(crossSectionMm2: number): number {
+  if (crossSectionMm2 >= 6) {
+    return 32;
+  }
+  if (crossSectionMm2 >= 4) {
+    return 25;
+  }
+  if (crossSectionMm2 >= 2.5) {
+    return 16;
+  }
+  if (crossSectionMm2 >= 1.5) {
+    return 10;
+  }
+  return 0;
 }
 
 function buildCableGaugeGraph(project: ProjectData, protectiveDeviceId: string) {
@@ -461,33 +471,40 @@ function buildCableGaugeGraph(project: ProjectData, protectiveDeviceId: string) 
   return graph;
 }
 
-function hasReachableExternalLoad(
+function reachableExternalLoads(
   starts: string[],
   graph: Map<string, CableGaugeEdge[]>,
-  meta: Map<string, EndpointMeta>
+  meta: Map<string, EndpointMeta>,
+  blockedKey?: string
 ) {
   const queue = [...starts];
   const visited = new Set<string>();
+  const loads = new Map<string, BoardComponent>();
 
   while (queue.length > 0) {
     const key = queue.shift();
-    if (!key || visited.has(key)) {
+    if (!key || key === blockedKey || visited.has(key)) {
       continue;
     }
 
     visited.add(key);
-    if (meta.get(key)?.component?.electrical.externalLoad) {
-      return true;
+    const component = meta.get(key)?.component;
+    if (component?.electrical.externalLoad) {
+      loads.set(component.id, component);
     }
 
     graph.get(key)?.forEach((edge) => {
-      if (!visited.has(edge.to)) {
+      if (!visited.has(edge.to) && edge.to !== blockedKey) {
         queue.push(edge.to);
       }
     });
   }
 
-  return false;
+  return loads;
+}
+
+function loadSum(loads: Iterable<BoardComponent>): number {
+  return [...loads].reduce((sum, load) => sum + loadCurrentA(load), 0);
 }
 
 export const cableGaugePolicy: ValidationPolicy = (project) => {
@@ -511,7 +528,8 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
           (terminal.role === "power_out" || (protectiveDevice.type === "rcbo" && terminal.role === "neutral_out"))
       )
       .map((terminal) => endpointKey(terminalEndpoint(protectiveDevice.id, terminal.id)));
-    if (!hasReachableExternalLoad(starts, graph, meta)) {
+    const circuitLoads = reachableExternalLoads(starts, graph, meta);
+    if (circuitLoads.size === 0) {
       return;
     }
 
@@ -557,11 +575,72 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
           }
         }
 
+        if (edge.wire) {
+          const downstreamLoad = loadSum(reachableExternalLoads([edge.to], graph, meta, currentNode.key).values());
+          const maximumLoad = maximumCurrentForCrossSection(edge.wire.cable.crossSectionMm2);
+          const issueKey = `${protectiveDevice.id}:${edge.wire.id}:load`;
+          if (downstreamLoad > maximumLoad && !seen.has(issueKey)) {
+            seen.add(issueKey);
+            const from = findTerminal(project.board, project.components, edge.wire.from);
+            const to = findTerminal(project.board, project.components, edge.wire.to);
+            const relatedComponents = [from, to]
+              .filter((endpoint) => endpoint?.ownerKind === "component")
+              .map((endpoint) => endpoint?.ownerId ?? "")
+              .filter(Boolean);
+
+            issues.push({
+              severity: "error",
+              code: "CABLE_UNDERSIZED_LOAD",
+              message: `Przewód ${edge.wire.cable.crossSectionMm2} mm² jest zbyt mały dla obciążenia ${downstreamLoad} A w tym obwodzie.`,
+              relatedComponents: [protectiveDevice.id, ...relatedComponents],
+              relatedWires: [edge.wire.id],
+              suggestion: "Zwiększ przekrój przewodu albo zmniejsz zadeklarowane obciążenie odbiorników."
+            });
+          }
+        }
+
         if (!visited.has(edge.to) && !crossesIntoOtherBreaker) {
           queue.push({ key: edge.to, depth: currentNode.depth + 1 });
         }
       });
     }
+  });
+
+  return issues;
+};
+
+export const circuitLoadPolicy: ValidationPolicy = (project) => {
+  const issues: ValidationIssue[] = [];
+  const meta = endpointMeta(project);
+
+  project.components.filter(isProtectiveBreaker).forEach((protectiveDevice) => {
+    const current = protectiveDevice.electrical.ratedCurrentA;
+    if (!current) {
+      return;
+    }
+
+    const graph = buildCableGaugeGraph(project, protectiveDevice.id);
+    const starts = protectiveDevice.terminals
+      .filter(
+        (terminal) =>
+          terminal.direction === "out" &&
+          (terminal.role === "power_out" || (protectiveDevice.type === "rcbo" && terminal.role === "neutral_out"))
+      )
+      .map((terminal) => endpointKey(terminalEndpoint(protectiveDevice.id, terminal.id)));
+    const loads = reachableExternalLoads(starts, graph, meta);
+    const totalLoad = loadSum(loads.values());
+
+    if (loads.size === 0 || totalLoad <= current) {
+      return;
+    }
+
+    issues.push({
+      severity: "error",
+      code: "CIRCUIT_LOAD_EXCEEDS_BREAKER",
+      message: `Suma prądów odbiorników w obwodzie (${totalLoad} A) przekracza wartość zabezpieczenia ${breakerLabel(protectiveDevice)}.`,
+      relatedComponents: [protectiveDevice.id, ...loads.keys()],
+      suggestion: "Zmniejsz obciążenie obwodu albo dobierz odpowiednie zabezpieczenie i przewody."
+    });
   });
 
   return issues;
@@ -826,6 +905,7 @@ export const validationPolicies: ValidationPolicy[] = [
   neutralConnectionPolicy,
   neutralRcdCircuitPolicy,
   cableGaugePolicy,
+  circuitLoadPolicy,
   breakerGroupingPolicy,
   missingInputPolicy,
   requiredLoadPolesPolicy,

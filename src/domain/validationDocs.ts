@@ -12,10 +12,10 @@ export const validationDocs: ValidationDoc[] = [
   {
     id: "cable-sizing",
     title: "Walidacja przekroju przewodu",
-    issueCodes: ["CABLE_UNDERSIZED", "CABLE_UNDERSIZED_B16"],
+    issueCodes: ["CABLE_UNDERSIZED", "CABLE_UNDERSIZED_B16", "CABLE_UNDERSIZED_LOAD", "CIRCUIT_LOAD_EXCEEDS_BREAKER"],
     description:
       "Sprawdza nie tylko przewód bezpośrednio przy zabezpieczeniu, ale całą trasę obwodu za MCB/RCBO. Wykrywa sytuacje, gdy dalszy fragment instalacji ma zbyt mały przekrój względem zabezpieczenia nadprądowego.",
-    examples: ["B16 + cała trasa 2.5 mm² -> OK", "B16 + dalszy fragment 1.5 mm² -> Błąd"],
+    examples: ["B16 + cała trasa 2.5 mm² -> OK", "B16 + dalszy fragment 1.5 mm² -> Błąd", "B16 + odbiorniki 18 A -> Błąd"],
     rulesSummary: [
       "B10 lub C10 -> minimum 1.5 mm²",
       "B16 lub C16 -> minimum 2.5 mm² w tej aplikacji",
@@ -25,6 +25,22 @@ export const validationDocs: ValidationDoc[] = [
     limitations: [
       "To są uproszczone reguły.",
       "W rzeczywistości zależy to od sposobu ułożenia przewodu, temperatury, długości i zaleceń producenta."
+    ]
+  },
+  {
+    id: "circuit-load",
+    title: "Walidacja obciążenia obwodu",
+    issueCodes: ["CIRCUIT_LOAD_EXCEEDS_BREAKER", "CABLE_UNDERSIZED_LOAD"],
+    description:
+      "Sprawdza, czy suma prądów odbiorników nie przekracza wartości zabezpieczenia oraz czy przekrój przewodów jest odpowiedni dla zadeklarowanego obciążenia.",
+    examples: ["B16 + odbiornik 10 A -> OK", "B16 + odbiorniki 10 A i 8 A -> Błąd"],
+    rulesSummary: [
+      "Prądy odbiorników za tym samym MCB/RCBO są sumowane.",
+      "Przewody są sprawdzane także względem obciążenia odbiorników, nie tylko względem zabezpieczenia."
+    ],
+    limitations: [
+      "To uproszczona walidacja hobbystyczna.",
+      "Aplikacja nie uwzględnia charakteru odbiornika, rozruchu ani warunków ułożenia przewodów."
     ]
   },
   {

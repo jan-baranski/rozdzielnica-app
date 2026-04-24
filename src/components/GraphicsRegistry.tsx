@@ -48,4 +48,5 @@ export const graphicsRegistry: Record<string, React.ComponentType<React.SVGProps
   "generic-pe-bus-8": BusPe,
   "external-bulb": ExternalBulb,
   "external-outlet": ExternalOutlet,
+  "custom-load": ExternalOutlet,
 };

@@ -8,7 +8,8 @@ export type ComponentType =
   | "pe_bus"
   | "blank"
   | "bulb"
-  | "outlet";
+  | "outlet"
+  | "custom_load";
 
 export type TerminalRole =
   | "power_in"
@@ -70,6 +71,7 @@ export interface ComponentElectricalProperties {
   busType?: "N" | "PE";
   externalLoad?: boolean;
   requiredPoles?: Pole[];
+  currentA?: number;
 }
 
 export interface DinModuleLayout {
