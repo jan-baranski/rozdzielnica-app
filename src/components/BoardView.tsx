@@ -332,28 +332,28 @@ export function BoardView() {
   }, [selectedItem, wires]);
 
   return (
-    <section className="min-w-0 overflow-auto bg-slate-950 p-8 scrollbar-thin scrollbar-thumb-slate-800">
-      <div className="mb-6 flex items-end justify-between">
+    <section className="min-w-0 overflow-auto bg-[#e7edf3] p-6">
+      <div className="mb-4 flex items-end justify-between">
         <div>
-          <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">{board.name}</h2>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-            {board.rows.length} Rzędy · {board.widthModulesPerRow} Modułów
+          <h2 className="text-sm font-semibold">{board.name}</h2>
+          <p className="text-xs text-[#667085]">
+            {board.rows.length} rz. · {board.widthModulesPerRow} modułów w rzędzie
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/50 p-1 text-[10px] font-black text-slate-400">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded border border-[#b9c4d2] bg-white text-xs text-[#344054]">
             <button
               title="Pomniejsz widok"
               aria-label="Pomniejsz widok rozdzielnicy"
               onClick={zoomOut}
-              className="h-8 w-8 rounded-lg transition-colors hover:bg-slate-800 hover:text-white"
+              className="h-7 w-8 border-r border-[#d4dce7] font-semibold hover:bg-[#f8fafc]"
             >
               -
             </button>
             <button
               title="Resetuj powiększenie"
               onClick={resetZoom}
-              className="px-3 font-black tracking-tighter transition-colors hover:text-blue-400"
+              className="h-7 min-w-14 border-r border-[#d4dce7] px-2 font-medium hover:bg-[#f8fafc]"
             >
               {Math.round(boardZoom * 100)}%
             </button>
@@ -361,19 +361,18 @@ export function BoardView() {
               title="Powiększ widok"
               aria-label="Powiększ widok rozdzielnicy"
               onClick={zoomIn}
-              className="h-8 w-8 rounded-lg transition-colors hover:bg-slate-800 hover:text-white"
+              className="h-7 w-8 font-semibold hover:bg-[#f8fafc]"
             >
               +
             </button>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-blue-400">
-            {components.reduce((sum, component) => sum + component.moduleWidth, 0)}M / {board.rows.length * board.widthModulesPerRow}M
+          <div className="rounded border border-[#b9c4d2] bg-white px-3 py-1 text-xs text-[#344054]">
+            Ułożono {components.reduce((sum, component) => sum + component.moduleWidth, 0)}M
           </div>
         </div>
       </div>
 
-      <div className="inline-block rounded-3xl bg-slate-900 p-8 shadow-2xl ring-1 ring-white/5 relative group">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-500/5 via-transparent to-transparent opacity-50" />
+      <div className="inline-block rounded bg-[#d9e1ea] p-5 shadow-panel">
         <div style={{ width: workspaceWidth * boardZoom, height: boardHeight * boardZoom }}>
         <div
           className="relative overflow-visible rounded border border-[#a8b4c3] bg-[#eef3f8]"
@@ -530,14 +529,14 @@ export function BoardView() {
             className="pointer-events-none absolute z-50 hidden rounded border-2 border-dashed border-[#2f80ed] bg-[#2f80ed]/10 transition-all duration-75"
           />
           <div
-            className="absolute left-0 top-0 rounded-2xl bg-slate-900 shadow-inner"
+            className="absolute left-0 top-0 rounded bg-[#f7f8f9]"
             style={{ width: boardWidth, height: boardHeight }}
           />
           <div
-            className="absolute top-0 border-l border-white/5 bg-slate-900/50 backdrop-blur-sm"
+            className="absolute top-0 border-l border-dashed border-[#aab5c4] bg-[#edf1f4]"
             style={{ left: boardWidth, width: EXTERNAL_ZONE_WIDTH_PX, height: boardHeight }}
           >
-            <div className="absolute left-4 top-3 text-[10px] font-black uppercase tracking-widest text-slate-700">
+            <div className="absolute left-3 top-2 text-[10px] font-semibold uppercase text-[#667085]">
               Odbiorniki
             </div>
           </div>
@@ -557,14 +556,14 @@ export function BoardView() {
                   clickTerminal(endpoint);
                 }}
                 className={[
-                  "absolute z-40 flex h-6 min-w-10 items-center justify-center rounded-lg border-b-2 text-[10px] font-black text-white shadow-lg transition-all active:scale-95",
+                  "absolute z-40 flex h-5 min-w-9 items-center justify-center rounded-full border px-1 text-[10px] font-bold text-white shadow-sm transition-all",
                   supplyClass(terminal),
-                  isPending ? "ring-2 ring-blue-400" : "",
-                  isMoveable ? "ring-4 ring-blue-500 ring-offset-4 ring-offset-slate-900 animate-pulse" : ""
+                  isPending ? "ring-2 ring-[#fdb022]" : "",
+                  isMoveable ? "ring-4 ring-[#2f80ed] ring-offset-2 ring-offset-[#eef3f8]" : ""
                 ].join(" ")}
                 style={{
-                  left: terminal.position.x - 12,
-                  top: terminal.position.y - 12
+                  left: terminal.position.x - 10,
+                  top: terminal.position.y - 10
                 }}
               >
                 {terminal.label}
@@ -578,16 +577,16 @@ export function BoardView() {
               className="absolute left-0"
               style={{ top: row.index * (MODULE_HEIGHT_PX + ROW_GAP), width: boardWidth, height: MODULE_HEIGHT_PX }}
             >
-              <div className="absolute left-0 right-0 top-[52px] h-5 border-y border-white/5 bg-white/5" />
+              <div className="absolute left-0 right-0 top-[52px] h-4 border-y border-[#7f8b99] bg-[#bac5d1]" />
               {Array.from({ length: row.maxModules }).map((_, index) => (
                 <div
                   key={index}
-                  className="absolute top-0 h-full border-l border-white/5"
+                  className="absolute top-0 h-full border-l border-[#dde3eb]"
                   style={{ left: index * MODULE_WIDTH_PX, width: MODULE_WIDTH_PX }}
                 />
               ))}
-              <div className="absolute left-4 top-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-700">
-                SZTYNA DIN · RZĄD {row.index + 1}
+              <div className="absolute left-2 top-2 text-[10px] font-semibold text-[#8792a1]">
+                RZĄD {row.index + 1}
               </div>
             </div>
           ))}

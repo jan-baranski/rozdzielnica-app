@@ -40,16 +40,13 @@ export function PropertiesPanel() {
   };
 
   return (
-    <aside className="overflow-y-auto border-l border-slate-800 bg-slate-900/40 p-6 scrollbar-thin scrollbar-thumb-slate-700">
-      <div className="mb-6">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Panel Właściwości</h2>
-        <div className="mt-1 h-1 w-8 rounded-full bg-blue-600" />
-      </div>
+    <aside className="overflow-y-auto border-l border-[#c8d1dc] bg-[#f8fafc] p-4">
+      <h2 className="text-sm font-semibold">Właściwości</h2>
 
-      <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-800/20 p-5 backdrop-blur-sm shadow-xl">
-        <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Konfiguracja Obudowy</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <label className="block text-[10px] font-bold uppercase tracking-tight text-slate-400" htmlFor="board-rows">
+      <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
+        <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Rozmiar rozdzielnicy</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-xs font-semibold text-[#667085]" htmlFor="board-rows">
             Rzędy
             <input
               id="board-rows"
@@ -63,11 +60,11 @@ export function PropertiesPanel() {
                   modulesPerRow: board.widthModulesPerRow
                 })
               }
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm font-bold text-white outline-none ring-blue-500/20 transition-all focus:border-blue-500/50 focus:ring-4"
+              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
             />
           </label>
-          <label className="block text-[10px] font-bold uppercase tracking-tight text-slate-400" htmlFor="board-modules">
-            Moduły / rz.
+          <label className="block text-xs font-semibold text-[#667085]" htmlFor="board-modules">
+            Moduły / rząd
             <input
               id="board-modules"
               type="number"
@@ -80,70 +77,75 @@ export function PropertiesPanel() {
                   modulesPerRow: Number(event.target.value)
                 })
               }
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm font-bold text-white outline-none ring-blue-500/20 transition-all focus:border-blue-500/50 focus:ring-4"
+              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
             />
           </label>
         </div>
-        <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-4 text-[10px] font-bold uppercase tracking-widest">
-          <span className="text-slate-500">Suma Modułów</span>
-          <span className="rounded-lg bg-blue-500/10 px-2 py-1 text-blue-400">
+        <div className="mt-3 flex items-center justify-between text-xs text-[#667085]">
+          <span>Pojemność</span>
+          <span className="font-semibold text-[#344054]">
             {board.rows.length * board.widthModulesPerRow}M
           </span>
         </div>
       </section>
 
       {!selectedComponent && !selectedWire && !selectedTerminal ? (
-        <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/20 p-8 text-center text-xs text-slate-500">
-          <svg className="mb-3 opacity-20" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 13h5"/><path d="M15 9h5"/><path d="M15 17h5"/><rect x="3" y="5" width="12" height="14" rx="2"/></svg>
-          Wybierz element na schemacie, aby edytować jego parametry.
+        <div className="mt-4 rounded border border-[#d4dce7] bg-white p-4 text-sm text-[#667085]">
+          Wybierz aparat, zacisk, przewód albo pozycję walidacji.
         </div>
       ) : null}
 
       {selectedComponent ? (
-        <div className="mt-6 space-y-6">
-          <section className="rounded-2xl border border-slate-800 bg-slate-800/30 p-5 shadow-xl">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500" htmlFor="component-name">
-              Etykieta Aparatu
+        <div className="mt-4 space-y-4">
+          <section className="rounded border border-[#d4dce7] bg-white p-4">
+            <label className="block text-xs font-semibold text-[#667085]" htmlFor="component-name">
+              Nazwa
             </label>
             <input
               id="component-name"
               value={selectedComponent.name}
               onChange={(event) => updateComponentName(selectedComponent.id, event.target.value)}
-              className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm font-bold text-white outline-none ring-blue-500/20 transition-all focus:border-blue-500/50 focus:ring-4"
+              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm outline-none focus:border-[#2f80ed]"
             />
-            <div className="mt-6 grid grid-cols-2 gap-y-4 border-t border-slate-800 pt-6">
-              <div>
-                <dt className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Typ Urządzenia</dt>
-                <dd className="mt-1 text-xs font-bold text-slate-200">{selectedComponent.type}</dd>
-              </div>
-              <div>
-                <dt className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Szerokość</dt>
-                <dd className="mt-1 text-xs font-bold text-slate-200">{selectedComponent.moduleWidth} Moduły</dd>
-              </div>
-              <div>
-                <dt className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Lokalizacja</dt>
-                <dd className="mt-1 text-xs font-bold text-slate-200">
-                  {selectedComponent.layout.placementMode === "din_module" ? `Rząd ${selectedComponent.layout.row + 1}` : "Montaż wolny"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Pozycja X,Y</dt>
-                <dd className="mt-1 text-xs font-bold text-slate-200">
-                  {selectedComponent.layout.placementMode === "din_module"
-                    ? `Moduł ${selectedComponent.layout.startModule}`
-                    : `${Math.round(selectedComponent.layout.x)}, ${Math.round(selectedComponent.layout.y)}`}
-                </dd>
-              </div>
-            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
+              <dt className="text-[#667085]">Typ</dt>
+              <dd className="font-medium">{selectedComponent.type}</dd>
+              <dt className="text-[#667085]">Moduły</dt>
+              <dd className="font-medium">{selectedComponent.moduleWidth}M</dd>
+              <dt className="text-[#667085]">Rząd</dt>
+              <dd className="font-medium">
+                {selectedComponent.layout.placementMode === "din_module" ? selectedComponent.layout.row + 1 : "wolny"}
+              </dd>
+              <dt className="text-[#667085]">Pozycja</dt>
+              <dd className="font-medium">
+                {selectedComponent.layout.placementMode === "din_module"
+                  ? selectedComponent.layout.startModule
+                  : `${Math.round(selectedComponent.layout.x)}, ${Math.round(selectedComponent.layout.y)}`}
+              </dd>
+            </dl>
           </section>
 
-          <section className="rounded-2xl border border-slate-800 bg-slate-800/30 p-5 shadow-xl">
-            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center">Parametry Elektryczne</h3>
-            <div className="space-y-2">
+          <section className="rounded border border-[#d4dce7] bg-white p-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-[#667085]">Parametry elektryczne</h3>
+            <dl className="space-y-1 text-xs">
               {Object.entries(selectedComponent.electrical).map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between rounded-lg bg-slate-900/40 px-3 py-2">
-                  <dt className="text-[9px] font-bold uppercase tracking-tight text-slate-500">{key}</dt>
-                  <dd className="text-[10px] font-black text-blue-400 uppercase">{String(value)}</dd>
+                <div key={key} className="flex justify-between gap-3">
+                  <dt className="text-[#667085]">{key}</dt>
+                  <dd className="font-medium">{String(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="rounded border border-[#d4dce7] bg-white p-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-[#667085]">Zaciski</h3>
+            <div className="space-y-2">
+              {selectedComponent.terminals.map((terminal) => (
+                <div key={terminal.id} className="rounded border border-[#e3e8ef] px-2 py-1.5 text-xs">
+                  <div className="font-medium">{terminal.label}</div>
+                  <div className="text-[#667085]">
+                    {terminal.role} · {terminal.pole} · {terminal.direction}
+                  </div>
                 </div>
               ))}
             </div>
@@ -151,49 +153,45 @@ export function PropertiesPanel() {
 
           <button
             onClick={() => removeComponent(selectedComponent.id)}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl border border-red-900/50 bg-red-600/10 px-4 py-3 text-xs font-bold text-red-400 transition-all hover:bg-red-600 hover:text-white"
+            className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-            USUŃ APARAT
+            Usuń aparat
           </button>
         </div>
       ) : null}
 
       {selectedWire ? (
-        <div className="mt-6 space-y-6">
-          <section className="rounded-2xl border border-slate-800 bg-slate-800/30 p-5 shadow-xl text-sm">
-            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Szczegóły Połączenia</h3>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500/20 text-[10px] font-black text-blue-400">A</div>
-                <div>
-                  <dt className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Źródło (Od)</dt>
-                  <dd className="mt-1 text-xs font-bold text-slate-200">{describeEndpoint(selectedWire.from)}</dd>
-                </div>
+        <div className="mt-4 space-y-4">
+          <section className="rounded border border-[#d4dce7] bg-white p-4 text-sm">
+            <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Przewód</h3>
+            <dl className="space-y-2 text-xs">
+              <div>
+                <dt className="text-[#667085]">Od</dt>
+                <dd className="font-medium">
+                  {describeEndpoint(selectedWire.from)}
+                </dd>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-500/20 text-[10px] font-black text-blue-400">B</div>
-                <div>
-                  <dt className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Cel (Do)</dt>
-                  <dd className="mt-1 text-xs font-bold text-slate-200">{describeEndpoint(selectedWire.to)}</dd>
-                </div>
+              <div>
+                <dt className="text-[#667085]">Do</dt>
+                <dd className="font-medium">
+                  {describeEndpoint(selectedWire.to)}
+                </dd>
               </div>
-            </div>
+            </dl>
           </section>
-          
-          <section className="rounded-2xl border border-slate-800 bg-slate-800/30 p-5 shadow-xl">
-            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Parametry Przewodu</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <label className="block text-[10px] font-bold uppercase tracking-tight text-slate-400" htmlFor="wire-type">
+          <section className="rounded border border-[#d4dce7] bg-white p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Parametry kabla</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs font-semibold text-[#667085]" htmlFor="wire-type">
                 Typ
                 <input
                   id="wire-type"
                   value={selectedWire.cable.type}
                   onChange={(event) => updateWireCable(selectedWire.id, { type: event.target.value })}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm font-bold text-white outline-none focus:border-blue-500/50"
+                  className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
                 />
               </label>
-              <label className="block text-[10px] font-bold uppercase tracking-tight text-slate-400" htmlFor="wire-cross-section">
+              <label className="block text-xs font-semibold text-[#667085]" htmlFor="wire-cross-section">
                 Przekrój mm²
                 <input
                   id="wire-cross-section"
@@ -206,78 +204,76 @@ export function PropertiesPanel() {
                       crossSectionMm2: Number(event.target.value)
                     })
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm font-bold text-white outline-none focus:border-blue-500/50"
+                  className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
                 />
               </label>
             </div>
-            <label className="mt-4 block text-[10px] font-bold uppercase tracking-tight text-slate-400" htmlFor="wire-color">
-              Kolor / Oznaczenie
+            <label className="mt-3 block text-xs font-semibold text-[#667085]" htmlFor="wire-color">
+              Kolor / oznaczenie
               <input
                 id="wire-color"
                 value={selectedWire.cable.color}
                 onChange={(event) => updateWireCable(selectedWire.id, { color: event.target.value })}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm font-bold text-white outline-none focus:border-blue-500/50"
+                className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
               />
             </label>
           </section>
-
           <button
             onClick={() => removeWire(selectedWire.id)}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl border border-red-900/50 bg-red-600/10 px-4 py-3 text-xs font-bold text-red-400 transition-all hover:bg-red-600 hover:text-white"
+            className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            USUŃ PRZEWÓD
+            Usuń przewód
           </button>
         </div>
       ) : null}
 
       {selectedTerminal ? (
-        <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-800/30 p-5 shadow-xl">
-          <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center text-white">Informacja o Zacisku</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center rounded-lg bg-slate-900/40 px-3 py-2">
-              <span className="text-[10px] font-bold uppercase tracking-tight text-slate-500">Etykieta</span>
-              <span className="text-xs font-black text-white">{selectedTerminal.terminal.label}</span>
+        <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Zacisk</h3>
+          <dl className="space-y-2 text-xs">
+            <div className="flex justify-between">
+              <dt className="text-[#667085]">Etykieta</dt>
+              <dd className="font-medium">{selectedTerminal.terminal.label}</dd>
             </div>
-            <div className="flex justify-between items-center rounded-lg bg-slate-900/40 px-3 py-2">
-              <span className="text-[10px] font-bold uppercase tracking-tight text-slate-500">Biegun</span>
-              <span className="text-xs font-black text-blue-400">{selectedTerminal.terminal.pole}</span>
+            <div className="flex justify-between">
+              <dt className="text-[#667085]">Biegun</dt>
+              <dd className="font-medium">{selectedTerminal.terminal.pole}</dd>
             </div>
-            <div className="flex justify-between items-center rounded-lg bg-slate-900/40 px-3 py-2">
-              <span className="text-[10px] font-bold uppercase tracking-tight text-slate-500">Rola</span>
-              <span className="text-[10px] font-bold uppercase text-slate-300">{selectedTerminal.normalizedRole}</span>
+            <div className="flex justify-between">
+              <dt className="text-[#667085]">Rola</dt>
+              <dd className="font-medium">{selectedTerminal.normalizedRole}</dd>
             </div>
-          </div>
+          </dl>
         </section>
       ) : null}
 
       {selectedComponent ? (
-        <section className="mt-6 border-t border-slate-800 pt-6">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-4 text-center">Analiza Błędów</h3>
-          <div className="space-y-3">
+        <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase text-[#667085]">Źródło katalogowe</h3>
+          <p className="text-xs">
+            {findCatalogItem(selectedComponent.catalogItemId)?.manufacturer ?? "Nieznany"} ·{" "}
+            {selectedComponent.catalogItemId}
+          </p>
+        </section>
+      ) : null}
+
+      {selectedComponent ? (
+        <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase text-[#667085]">Powiązane problemy</h3>
+          <div className="space-y-2">
             {validationResults
               .filter((issue) => issue.relatedComponents?.includes(selectedComponent.id))
               .map((issue) => (
                 <div
                   key={`${issue.code}-${issue.message}`}
-                  className={`rounded-xl border p-3 text-[11px] leading-relaxed transition-all ${
-                    issue.severity === "error" 
-                    ? "border-red-900/50 bg-red-600/5 text-red-300" 
-                    : "border-amber-900/50 bg-amber-600/5 text-amber-300"
-                  }`}
+                  className="rounded border border-[#e3e8ef] px-2 py-1.5 text-xs"
                 >
-                  <div className="flex items-center gap-2 font-black uppercase tracking-tighter mb-1">
-                    <div className={`h-1.5 w-1.5 rounded-full ${issue.severity === "error" ? "bg-red-500" : "bg-amber-500"}`} />
+                  <div className={issue.severity === "error" ? "font-semibold text-[#b42318]" : "font-semibold text-[#946100]"}>
                     {issue.code}
                   </div>
-                  <p className="opacity-80 font-medium">{issue.message}</p>
+                  <p className="text-[#475467]">{issue.message}</p>
                 </div>
               ))}
-            {validationResults.filter((issue) => issue.relatedComponents?.includes(selectedComponent.id)).length === 0 && (
-              <div className="flex flex-col items-center justify-center py-4 text-slate-700 italic text-[10px]">
-                 Brak wykrytych nieprawidłowości
-              </div>
-            )}
           </div>
         </section>
       ) : null}

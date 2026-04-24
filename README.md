@@ -1,82 +1,56 @@
-# DIN Board Designer
+# Projektant Rozdzielnicy DIN (DIN Board Designer)
 
-Production-quality MVP web app for designing residential DIN-rail electrical distribution boards. It combines a realistic front-view editor, a typed logical model, simple terminal wiring, and live validation policies.
+Profesjonalne narzędzie MVP do projektowania domowych rozdzielnic elektrycznych na szynę DIN. Aplikacja łączy w sobie realistyczny edytor wizualny, silnik walidacji reguł technicznych oraz możliwość generowania schematów logicznych.
 
-## Stack
+## Główne Funkcje (Features)
 
-- Next.js App Router, React, TypeScript
-- Zustand for editor state
-- Tailwind CSS for UI
-- Zod for catalog/project validation
-- Vitest for pure domain tests
-- Custom absolute-positioned canvas for module-accurate board layout
+- **Interaktywna Szyna DIN**: Przeciągaj i upuszczaj (drag-and-drop) aparaty bezpośrednio na rzędy rozdzielnicy. System automatycznie wykrywa zajęte moduły i sugeruje wolne miejsca.
+- **Obszerna Biblioteka Aparatów**: Dostęp do katalogu standardowych komponentów (nadmiarowoprądowe MCB, różnicowoprądowe RCD, ochronniki SPD, rozłączniki główne, gniazda i inne).
+- **Zaawansowany System Okablowania**:
+  - Tworzenie połączeń między zaciskami aparatów.
+  - **Przenoszenie Przewodów**: Możliwość odłączenia jednego końca przewodu i przepięcia go do innego zacisku bez usuwania całego połączenia.
+  - Automatyczne dobieranie kolorów izolacji na podstawie potencjału zacisku (L1, L2, L3, N, PE).
+- **Inteligentna Walidacja (Live)**: Silnik reguł w czasie rzeczywistym sprawdza błędy takie jak:
+  - Przekroczenie pojemności rzędów.
+  - Niekompatybilne połączenia (np. faza do PE).
+  - Brak zabezpieczenia różnicowoprądowego dla obwodów odbiorczych.
+  - Brak rozłącznika głównego.
+- **Eksport i Import**: Możliwość zapisu projektu do formatu JSON oraz szybkiego przywracania stanu początkowego (przycisk Demo).
 
-## Run
+## Jak Korzystać (How to Use)
+
+### 1. Budowa Rozdzielnicy
+- Wybierz aparat z **Biblioteki aparatów** po lewej stronie.
+- Przeciągnij go na wybrany rząd w centralnej części ekranu.
+- Możesz dowolnie przesuwać ułożone już aparaty lub zmieniać rozmiar rozdzielnicy w **Panelu Właściwości** po prawej stronie.
+
+### 2. Okablowanie
+- Kliknij na wybrany zacisk aparatu (mały kolorowy okrąg). Zostanie on podświetlony jako punkt startowy.
+- Kliknij na drugi zacisk, aby utworzyć połączenie.
+- **Aby zmienić połączenie**: Wybierz istniejący przewód, kliknij jeden z podświetlonych końców, a następnie kliknij nowy zacisk docelowy.
+
+### 3. Konfiguracja i Detale
+- Kliknij na aparat lub przewód, aby zobaczyć i edytować jego szczegóły w **Panelu Właściwości**.
+- Możesz tam zmienić nazwę aparatu (np. "Oświetlenie Salon") lub przekrój przewodu.
+
+### 4. Sprawdzanie Błędów
+- Panel na dole ekranu wyświetla listę wykrytych problemów.
+- Kliknięcie w błąd podświetli komponenty, których dotyczy problem.
+
+## Technologia (Stack)
+
+- **Frontend**: Next.js (App Router), React, TypeScript.
+- **Stan**: Zustand (zarządzanie stanem edytora).
+- **Stylizacja**: Tailwind CSS.
+- **Logika**: Zod (walidacja schematów), Vitest (testy domeny).
+
+## Uruchomienie Lokalne
 
 ```bash
 npm install
 npm run dev
 ```
+Aplikacja będzie dostępna pod adresem `http://localhost:3000`.
 
-Then open `http://localhost:3000`.
-
-## Docker
-
-Build and run the production image directly:
-
-```bash
-docker build -t din-board-designer .
-docker run --rm -p 3000:3000 din-board-designer
-```
-
-Or use Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-Then open `http://localhost:3000`.
-
-## Test
-
-```bash
-npm test
-```
-
-## Architecture
-
-- `src/domain/types.ts` defines the strongly typed board, component, terminal, wire, catalog, and validation models.
-- `src/domain/layoutEngine.ts` contains pure module-grid layout functions: occupancy, overlap detection, out-of-bounds detection, and first available slot.
-- `src/domain/connectivityEngine.ts` builds terminal graph primitives and validates terminal compatibility.
-- `src/domain/policies.ts` is the pluggable policy layer. Current policies cover out-of-bounds components, overlapping components, incompatible connections, PE/non-earth connections, missing inputs, missing main switch, and high occupancy.
-- `src/store/useBoardStore.ts` owns editor state with Zustand and runs validation after every board mutation.
-- `src/components/*` contains the library, board canvas, component rendering, properties panel, validation panel, and JSON import/export UI.
-
-## Catalog And Assets
-
-The catalog is JSON-driven at `public/catalog/generic-catalog.json`. The MVP includes:
-
-- MCB 1P B16
-- MCB 1P B20
-- MCB 1P B25
-- MCB 1P C16
-- MCB 1P C20
-- MCB 3P
-- RCD 2P 40A 30mA
-- RCD 4P
-- RCBO 1P+N
-- SPD type 2 4P
-- Main switch 4P
-- Neutral bus
-- PE bus
-- Blank module
-
-Each catalog item defines manufacturer/model/category, module width, terminal templates, electrical properties, and a visual asset path. Assets live in `public/assets/components`.
-
-## Demo Project
-
-The initial app state is loaded from `public/projects/demo-board.json`. Use the top-right `JSON` panel to export the current project or import edited project JSON. Use `Demo` to restore the sample project.
-
-## MVP Scope
-
-This app intentionally does not implement full electrical standards compliance. It focuses on clear board layout, logical connectivity, and basic validation that is easy to extend.
+---
+**Uwaga**: Narzędzie ma charakter poglądowy i edukacyjny. Projekty i walidacje nie zastępują wiedzy i uprawnień profesjonalnego elektryka.
