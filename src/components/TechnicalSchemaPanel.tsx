@@ -206,6 +206,9 @@ export function TechnicalSchemaPanel() {
             <h2 className="text-sm font-semibold">Formalny schemat techniczny</h2>
             {message ? <span className="text-xs text-[#667085]">{message}</span> : null}
           </div>
+          <div className="mb-3 rounded border border-[#facc15] bg-[#fef9c3] px-3 py-2 text-sm font-medium text-[#854d0e]">
+            Ta funkcjonalnosc nie dziala poprawnie. Trzeba poprawic prompt generowania schematu.
+          </div>
           <OfficialSchemaPreview project={project} />
           <textarea
             value={schema}
