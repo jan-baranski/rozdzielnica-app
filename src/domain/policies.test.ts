@@ -151,6 +151,15 @@ function protectedCircuit(
   ];
 }
 
+function protectedB16FullSupplyWires(supplyMain = 2.5, mainRcd = 2.5, rcdMcb = 2.5, mcbLoad = 2.5) {
+  return [
+    withCrossSection(wire(boardEndpoint("supply-l1"), componentEndpoint("source", "l-in"), "supply-main"), supplyMain),
+    withCrossSection(wire(componentEndpoint("source", "l-out"), componentEndpoint("rcd-a", "l1-in"), "main-rcd"), mainRcd),
+    withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), rcdMcb),
+    withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in"), "b16-outlet"), mcbLoad)
+  ];
+}
+
 function completeCircuitProject(loadComponent: BoardComponent = externalLoad("load-a", 5)): ProjectData {
   return {
     board: testBoard,
@@ -454,6 +463,38 @@ describe("validation policies", () => {
     expect(issues).toHaveLength(0);
   });
 
+  it("detects a 0.5 mm2 supply segment on the full route to a B16 outlet", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [source, rcd("rcd-a"), mcb("b16"), genericOutlet("outlet-a")],
+      wires: protectedB16FullSupplyWires(0.5, 2.5, 2.5, 2.5)
+    });
+
+    expect(issues.some((issue) => issue.relatedWires?.includes("supply-main"))).toBe(true);
+    expect(issues.find((issue) => issue.relatedWires?.includes("supply-main"))?.message).toContain("B16");
+  });
+
+  it("detects a 1.5 mm2 supply segment on the full route to a B16 outlet", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [source, rcd("rcd-a"), mcb("b16"), genericOutlet("outlet-a")],
+      wires: protectedB16FullSupplyWires(1.5, 2.5, 2.5, 2.5)
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["supply-main"]);
+  });
+
+  it("accepts a 2.5 mm2 full supply route to a B16 outlet", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [source, rcd("rcd-a"), mcb("b16"), genericOutlet("outlet-a")],
+      wires: protectedB16FullSupplyWires(2.5, 2.5, 2.5, 2.5)
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
   it("detects an undersized downstream segment behind a B16 breaker", () => {
     const issues = cableGaugePolicy({
       board: testBoard,
@@ -508,6 +549,56 @@ describe("validation policies", () => {
 
     expect(issues).toHaveLength(1);
     expect(issues[0].relatedWires).toEqual(["b16-outlet"]);
+  });
+
+  it("accepts parallel B10 and B16 circuits when the shared supply route is sized for B16", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [
+        source,
+        rcd("rcd-a"),
+        mcb("b10", 3, 10, "B"),
+        mcb("b16", 4, 16, "B"),
+        bulbLoad("bulb-a"),
+        genericOutlet("outlet-a")
+      ],
+      wires: [
+        withCrossSection(wire(boardEndpoint("supply-l1"), componentEndpoint("source", "l-in"), "supply-main"), 2.5),
+        withCrossSection(wire(componentEndpoint("source", "l-out"), componentEndpoint("rcd-a", "l1-in"), "main-rcd"), 2.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"), 1.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), 2.5),
+        withCrossSection(wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b10-bulb"), 1.5),
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in"), "b16-outlet"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("reports a shared supply route that is too small for the largest downstream breaker", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [
+        source,
+        rcd("rcd-a"),
+        mcb("b10", 3, 10, "B"),
+        mcb("b16", 4, 16, "B"),
+        bulbLoad("bulb-a"),
+        genericOutlet("outlet-a")
+      ],
+      wires: [
+        withCrossSection(wire(boardEndpoint("supply-l1"), componentEndpoint("source", "l-in"), "supply-main"), 2.5),
+        withCrossSection(wire(componentEndpoint("source", "l-out"), componentEndpoint("rcd-a", "l1-in"), "main-rcd"), 1.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b10", "l1-in"), "rcd-b10"), 1.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), 2.5),
+        withCrossSection(wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"), "b10-bulb"), 1.5),
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in"), "b16-outlet"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["main-rcd"]);
+    expect(issues[0].message).toContain("B16");
   });
 
   it("does not classify an undersized RCD-to-MCB feed as a final B16 circuit wire", () => {
@@ -576,6 +667,39 @@ describe("validation policies", () => {
         withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("joint-b", "l1"), "undersized-loop"), 1.5),
         withCrossSection(wire(componentEndpoint("joint-b", "l2"), componentEndpoint("joint-a", "l3"), "loop-return"), 2.5),
         withCrossSection(wire(componentEndpoint("joint-b", "l3"), componentEndpoint("load-a", "l-in"), "joint-load"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["undersized-loop"]);
+  });
+
+  it("checks an alternative live path to supply instead of stopping after the first valid route", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [source, rcd("rcd-a"), mcb("b16"), genericOutlet("outlet-a")],
+      wires: [
+        ...protectedB16FullSupplyWires(2.5, 2.5, 2.5, 2.5),
+        withCrossSection(wire(boardEndpoint("supply-l1"), componentEndpoint("outlet-a", "l-in"), "direct-supply-outlet"), 0.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["direct-supply-outlet"]);
+  });
+
+  it("does not loop or duplicate issues while checking full supply paths", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [source, rcd("rcd-a"), mcb("b16"), terminalBlock("joint-a"), terminalBlock("joint-b"), genericOutlet("outlet-a")],
+      wires: [
+        withCrossSection(wire(boardEndpoint("supply-l1"), componentEndpoint("source", "l-in"), "supply-main"), 2.5),
+        withCrossSection(wire(componentEndpoint("source", "l-out"), componentEndpoint("rcd-a", "l1-in"), "main-rcd"), 2.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("b16", "l1-in"), "rcd-b16"), 2.5),
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("joint-a", "l1"), "b16-joint"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("joint-b", "l1"), "undersized-loop"), 1.5),
+        withCrossSection(wire(componentEndpoint("joint-b", "l2"), componentEndpoint("joint-a", "l3"), "loop-return"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-b", "l3"), componentEndpoint("outlet-a", "l-in"), "joint-outlet"), 2.5)
       ]
     });
 

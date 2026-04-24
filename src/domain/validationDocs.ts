@@ -14,13 +14,18 @@ export const validationDocs: ValidationDoc[] = [
     title: "Walidacja przekroju przewodu",
     issueCodes: ["CABLE_UNDERSIZED", "CABLE_UNDERSIZED_B16", "CABLE_UNDERSIZED_LOAD", "CIRCUIT_LOAD_EXCEEDS_BREAKER"],
     description:
-      "Sprawdza nie tylko przewód bezpośrednio przy zabezpieczeniu, ale całą trasę obwodu za MCB/RCBO. Wykrywa sytuacje, gdy dalszy fragment instalacji ma zbyt mały przekrój względem zabezpieczenia nadprądowego.",
-    examples: ["B16 + cała trasa 2.5 mm² -> OK", "B16 + dalszy fragment 1.5 mm² -> Błąd", "B16 + odbiorniki 18 A poboru -> Błąd"],
+      "Sprawdza przekrój przewodów na całej trasie zasilania od odbiornika do wejścia sieci. Obejmuje zarówno przewody końcowe za MCB/RCBO, jak i wcześniejsze przewody zasilające rozłącznik, RCD, bloki rozdzielcze i grupy zabezpieczeń.",
+    examples: [
+      "B16 + cała trasa 2.5 mm² -> OK",
+      "B16 + wcześniejszy fragment zasilania 1.5 mm² -> Błąd",
+      "B16 + odbiorniki 18 A poboru -> Błąd"
+    ],
     rulesSummary: [
       "B10 lub C10 -> minimum 1.5 mm²",
       "B16 lub C16 -> minimum 2.5 mm² w tej aplikacji",
       "B20 lub C20 -> minimum 4 mm²",
-      "B25 lub C25 -> minimum 6 mm²"
+      "B25 lub C25 -> minimum 6 mm²",
+      "Przewody przed MCB są oceniane względem największego zabezpieczenia downstream, które mogą zasilać."
     ],
     limitations: [
       "To są uproszczone reguły.",

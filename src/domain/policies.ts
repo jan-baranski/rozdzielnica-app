@@ -861,6 +861,75 @@ function buildCableGaugeGraph(project: ProjectData, protectiveDeviceId: string) 
   return graph;
 }
 
+function buildFullSupplyCableGraph(project: ProjectData) {
+  const graph = new Map<string, CableGaugeEdge[]>();
+
+  project.wires.forEach((wire) => {
+    addCableGaugeEdge(graph, endpointKey(wire.from), endpointKey(wire.to), wire);
+  });
+
+  project.components.forEach((component) => {
+    component.terminals.forEach((terminal) => {
+      const key = endpointKey(terminalEndpoint(component.id, terminal.id));
+      graph.set(key, graph.get(key) ?? []);
+    });
+
+    if (component.electrical.externalLoad) {
+      return;
+    }
+
+    if (component.type === "neutral_bus" || component.type === "pe_bus") {
+      component.terminals.forEach((left, index) => {
+        component.terminals.slice(index + 1).forEach((right) => {
+          if (left.pole === right.pole) {
+            addCableGaugeEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, left.id)),
+              endpointKey(terminalEndpoint(component.id, right.id))
+            );
+          }
+        });
+      });
+      return;
+    }
+
+    component.terminals
+      .filter((terminal) => terminal.direction === "in")
+      .forEach((input) => {
+        component.terminals
+          .filter((terminal) => terminal.direction === "out" && terminal.pole === input.pole)
+          .forEach((output) => {
+            addCableGaugeEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, input.id)),
+              endpointKey(terminalEndpoint(component.id, output.id))
+            );
+          });
+      });
+
+    component.terminals
+      .filter((terminal) => terminal.direction === "bidirectional")
+      .forEach((left, index, terminals) => {
+        terminals.slice(index + 1).forEach((right) => {
+          if (left.pole === right.pole) {
+            addCableGaugeEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, left.id)),
+              endpointKey(terminalEndpoint(component.id, right.id))
+            );
+          }
+        });
+      });
+  });
+
+  project.board.supplyTerminals.forEach((terminal) => {
+    const key = endpointKey({ kind: "board_terminal", boardTerminalId: terminal.id });
+    graph.set(key, graph.get(key) ?? []);
+  });
+
+  return graph;
+}
+
 function reachableExternalLoads(
   starts: string[],
   graph: Map<string, CableGaugeEdge[]>,
@@ -895,6 +964,128 @@ function reachableExternalLoads(
 
 function loadSum(loads: Iterable<BoardComponent>): number {
   return [...loads].reduce((sum, load) => sum + loadCurrentA(load), 0);
+}
+
+type FullSupplyPath = {
+  keys: string[];
+  wires: WireConnection[];
+};
+
+type FullRouteCableRequirement = {
+  wire: WireConnection;
+  minimumCrossSection: number;
+  breakerLabel?: string;
+  breakerId?: string;
+  relatedComponents: Set<string>;
+};
+
+function isLiveEndpoint(key: string, meta: Map<string, EndpointMeta>) {
+  return meta.get(key)?.pole.startsWith("L") ?? false;
+}
+
+function isLiveSupplyEndpoint(key: string, meta: Map<string, EndpointMeta>) {
+  const endpoint = meta.get(key);
+  return endpoint?.endpoint.kind === "board_terminal" && endpoint.role === "power_source" && endpoint.pole.startsWith("L");
+}
+
+function findFullLiveSupplyPaths(
+  startKey: string,
+  graph: Map<string, CableGaugeEdge[]>,
+  meta: Map<string, EndpointMeta>,
+  maxDepth = 80,
+  maxPaths = 128
+): FullSupplyPath[] {
+  const paths: FullSupplyPath[] = [];
+  const stack: Array<{ key: string; keys: string[]; wires: WireConnection[]; visited: Set<string> }> = [
+    { key: startKey, keys: [startKey], wires: [], visited: new Set([startKey]) }
+  ];
+
+  while (stack.length > 0 && paths.length < maxPaths) {
+    const current = stack.pop();
+    if (!current || current.keys.length > maxDepth) {
+      continue;
+    }
+
+    if (current.key !== startKey && isLiveSupplyEndpoint(current.key, meta)) {
+      paths.push({ keys: current.keys, wires: current.wires });
+      continue;
+    }
+
+    graph.get(current.key)?.forEach((edge) => {
+      if (current.visited.has(edge.to) || !isLiveEndpoint(edge.to, meta)) {
+        return;
+      }
+
+      stack.push({
+        key: edge.to,
+        keys: [...current.keys, edge.to],
+        wires: edge.wire ? [...current.wires, edge.wire] : current.wires,
+        visited: new Set([...current.visited, edge.to])
+      });
+    });
+  }
+
+  return paths;
+}
+
+function strongestBreakerOnPath(path: FullSupplyPath, meta: Map<string, EndpointMeta>) {
+  const breakers = new Map<string, BoardComponent>();
+  path.keys.forEach((key) => {
+    const component = meta.get(key)?.component;
+    if (component && isProtectiveBreaker(component)) {
+      breakers.set(component.id, component);
+    }
+  });
+
+  return [...breakers.values()].reduce<BoardComponent | undefined>((strongest, breaker) => {
+    if (!strongest) {
+      return breaker;
+    }
+    return (breaker.electrical.ratedCurrentA ?? 0) > (strongest.electrical.ratedCurrentA ?? 0) ? breaker : strongest;
+  }, undefined);
+}
+
+function relatedComponentsForWire(project: ProjectData, wire: WireConnection) {
+  return [findTerminal(project.board, project.components, wire.from), findTerminal(project.board, project.components, wire.to)]
+    .filter((endpoint) => endpoint?.ownerKind === "component")
+    .map((endpoint) => endpoint?.ownerId ?? "")
+    .filter(Boolean);
+}
+
+function rememberFullRouteRequirement(
+  requirements: Map<string, FullRouteCableRequirement>,
+  wire: WireConnection,
+  minimumCrossSection: number,
+  relatedComponents: string[],
+  breaker?: BoardComponent
+) {
+  const existing = requirements.get(wire.id);
+  const breakerId = breaker?.id;
+  const label = breaker ? breakerLabel(breaker) : undefined;
+
+  if (!existing || minimumCrossSection > existing.minimumCrossSection) {
+    requirements.set(wire.id, {
+      wire,
+      minimumCrossSection,
+      breakerLabel: label,
+      breakerId,
+      relatedComponents: new Set([...(breakerId ? [breakerId] : []), ...relatedComponents])
+    });
+    return;
+  }
+
+  if (minimumCrossSection === existing.minimumCrossSection) {
+    if (!existing.breakerLabel && label) {
+      existing.breakerLabel = label;
+    }
+    if (!existing.breakerId && breakerId) {
+      existing.breakerId = breakerId;
+    }
+    relatedComponents.forEach((componentId) => existing.relatedComponents.add(componentId));
+    if (breakerId) {
+      existing.relatedComponents.add(breakerId);
+    }
+  }
 }
 
 export const cableGaugePolicy: ValidationPolicy = (project) => {
@@ -945,14 +1136,11 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
 
         if (edge.wire && edge.wire.cable.crossSectionMm2 < minimumCrossSection) {
           const issueKey = `${protectiveDevice.id}:${edge.wire.id}`;
-          if (!seen.has(issueKey)) {
+          const wireIssueKey = `wire-min:${edge.wire.id}`;
+          if (!seen.has(issueKey) && !seen.has(wireIssueKey)) {
             seen.add(issueKey);
-            const from = findTerminal(project.board, project.components, edge.wire.from);
-            const to = findTerminal(project.board, project.components, edge.wire.to);
-            const relatedComponents = [from, to]
-              .filter((endpoint) => endpoint?.ownerKind === "component")
-              .map((endpoint) => endpoint?.ownerId ?? "")
-              .filter(Boolean);
+            seen.add(wireIssueKey);
+            const relatedComponents = relatedComponentsForWire(project, edge.wire);
             const routeHint = starts.includes(currentNode.key) || starts.includes(edge.to) ? "" : " na dalszej trasie";
 
             issues.push({
@@ -975,12 +1163,7 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
           const issueKey = `${protectiveDevice.id}:${edge.wire.id}:load`;
           if (downstreamLoad > maximumLoad && !seen.has(issueKey)) {
             seen.add(issueKey);
-            const from = findTerminal(project.board, project.components, edge.wire.from);
-            const to = findTerminal(project.board, project.components, edge.wire.to);
-            const relatedComponents = [from, to]
-              .filter((endpoint) => endpoint?.ownerKind === "component")
-              .map((endpoint) => endpoint?.ownerId ?? "")
-              .filter(Boolean);
+            const relatedComponents = relatedComponentsForWire(project, edge.wire);
 
             issues.push({
               severity: "error",
@@ -998,6 +1181,67 @@ export const cableGaugePolicy: ValidationPolicy = (project) => {
         }
       });
     }
+  });
+
+  const fullSupplyGraph = buildFullSupplyCableGraph(project);
+  const fullRouteRequirements = new Map<string, FullRouteCableRequirement>();
+
+  project.components
+    .filter((component) => component.electrical.externalLoad)
+    .forEach((loadComponent) => {
+      loadComponent.terminals
+        .filter((terminal) => terminal.pole.startsWith("L"))
+        .forEach((terminal) => {
+          const startKey = endpointKey(terminalEndpoint(loadComponent.id, terminal.id));
+          const paths = findFullLiveSupplyPaths(startKey, fullSupplyGraph, meta);
+
+          paths.forEach((path) => {
+            const breaker = strongestBreakerOnPath(path, meta);
+            const minimumCrossSection = breaker
+              ? minimumCrossSectionForBreaker(breaker.electrical.ratedCurrentA ?? 0)
+              : 1.5;
+
+            path.wires.forEach((pathWire) => {
+              const relatedComponents = relatedComponentsForWire(project, pathWire);
+              rememberFullRouteRequirement(
+                fullRouteRequirements,
+                pathWire,
+                minimumCrossSection,
+                [loadComponent.id, ...relatedComponents],
+                breaker
+              );
+            });
+          });
+        });
+    });
+
+  fullRouteRequirements.forEach((requirement) => {
+    if (requirement.wire.cable.crossSectionMm2 >= requirement.minimumCrossSection) {
+      return;
+    }
+
+    const issueKey = `wire-min:${requirement.wire.id}`;
+    if (seen.has(issueKey)) {
+      return;
+    }
+    seen.add(issueKey);
+
+    const hasBreaker = Boolean(requirement.breakerLabel);
+    issues.push({
+      severity: hasBreaker ? "error" : "warning",
+      code:
+        requirement.breakerLabel === "B16"
+          ? "CABLE_UNDERSIZED_B16"
+          : "CABLE_UNDERSIZED",
+      message: hasBreaker
+        ? `Na trasie zasilania odbiornika wykryto przewód ${requirement.wire.cable.crossSectionMm2} mm². Dla obwodu ${requirement.breakerLabel} wymagane minimum to ${requirement.minimumCrossSection} mm².`
+        : `Na trasie zasilania odbiornika wykryto przewód ${requirement.wire.cable.crossSectionMm2} mm² bez jednoznacznego zabezpieczenia. Dla tej uproszczonej walidacji przyjęto minimum ${requirement.minimumCrossSection} mm².`,
+      relatedComponents: [...requirement.relatedComponents],
+      relatedWires: [requirement.wire.id],
+      suggestion: hasBreaker
+        ? "Zwiększ przekrój tego fragmentu trasy albo zmień zabezpieczenie downstream."
+        : "Sprawdź zasilanie tego odbiornika i dobierz przekrój przewodu do zabezpieczenia."
+    });
   });
 
   return issues;
