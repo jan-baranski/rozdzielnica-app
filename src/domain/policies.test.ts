@@ -3,6 +3,7 @@ import { catalogItems } from "./catalog";
 import {
   boardSupplyConnectionPolicy,
   cableGaugePolicy,
+  circuitCompletenessPolicy,
   circuitLoadPolicy,
   freePlacementBoundsPolicy,
   highOccupancyPolicy,
@@ -150,6 +151,25 @@ function protectedCircuit(
   ];
 }
 
+function completeCircuitProject(loadComponent: BoardComponent = externalLoad("load-a", 5)): ProjectData {
+  return {
+    board: testBoard,
+    components: [rcd("rcd-a"), mcb("mcb-a"), nBus("n-a"), peBus, loadComponent],
+    wires: [
+      wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "supply-rcd-l"),
+      wire(boardEndpoint("supply-n"), componentEndpoint("rcd-a", "n-in"), "supply-rcd-n"),
+      wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("mcb-a", "l1-in"), "rcd-mcb-l"),
+      wire(componentEndpoint("mcb-a", "l1-out"), componentEndpoint(loadComponent.id, "l-in"), "mcb-load-l"),
+      wire(componentEndpoint("rcd-a", "n-out"), componentEndpoint("n-a", "n1"), "rcd-bus-n"),
+      wire(componentEndpoint("n-a", "n2"), componentEndpoint(loadComponent.id, "n-in"), "bus-load-n"),
+      wire(boardEndpoint("supply-pe"), componentEndpoint("pe-bus", "pe1"), "supply-pe-bus"),
+      ...(loadComponent.terminals.some((terminal) => terminal.pole === "PE")
+        ? [wire(componentEndpoint("pe-bus", "pe1"), componentEndpoint(loadComponent.id, "pe"), "bus-load-pe")]
+        : [])
+    ]
+  };
+}
+
 describe("validation policies", () => {
   it("reports overlap policy errors", () => {
     const issues = overlapPolicy(project);
@@ -205,6 +225,108 @@ describe("validation policies", () => {
 
     expect(freeItem?.placementMode).toBe("free");
     expect(freeItem?.visual.widthPx).toBe(140);
+  });
+
+  it("accepts a complete load circuit with L, N, PE, MCB and RCD", () => {
+    const issues = circuitCompletenessPolicy(completeCircuitProject());
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("errors when load neutral has no continuity to supply", () => {
+    const project = completeCircuitProject();
+    const issues = circuitCompletenessPolicy({
+      ...project,
+      wires: project.wires.filter((wire) => wire.id !== "supply-rcd-n")
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_N_CONTINUITY")).toBe(true);
+  });
+
+  it("errors when load PE has no continuity to supply PE", () => {
+    const project = completeCircuitProject();
+    const issues = circuitCompletenessPolicy({
+      ...project,
+      wires: project.wires.filter((wire) => wire.id !== "supply-pe-bus")
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_PE_CONTINUITY")).toBe(true);
+  });
+
+  it("errors when a bulb is connected to L without RCD protection", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [bulbLoad("bulb-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("bulb-a", "l-in"), "direct-l"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("bulb-a", "n-in"), "direct-n")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_MISSING_RCD")).toBe(true);
+  });
+
+  it("errors when a bulb is connected to L without MCB or RCBO", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [bulbLoad("bulb-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("bulb-a", "l-in"), "direct-l"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("bulb-a", "n-in"), "direct-n")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_MISSING_BREAKER")).toBe(true);
+  });
+
+  it("errors when load L is behind RCD A and N is behind RCD B", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), rcd("rcd-b", 2), mcb("mcb-a"), nBus("n-b"), bulbLoad("bulb-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "a-l-supply"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("mcb-a", "l1-in"), "a-l-rcd-mcb"),
+        wire(componentEndpoint("mcb-a", "l1-out"), componentEndpoint("bulb-a", "l-in"), "a-l-load"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("rcd-b", "n-in"), "b-n-supply"),
+        wire(componentEndpoint("rcd-b", "n-out"), componentEndpoint("n-b", "n1"), "b-n-bus"),
+        wire(componentEndpoint("n-b", "n2"), componentEndpoint("bulb-a", "n-in"), "b-n-load")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_RCD_MISMATCH")).toBe(true);
+  });
+
+  it("errors when load L is behind RCD but N is before RCD", () => {
+    const issues = circuitCompletenessPolicy({
+      board: testBoard,
+      components: [rcd("rcd-a"), mcb("mcb-a"), nBus("n-before"), bulbLoad("bulb-a")],
+      wires: [
+        wire(boardEndpoint("supply-l1"), componentEndpoint("rcd-a", "l1-in"), "l-supply"),
+        wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("mcb-a", "l1-in"), "l-rcd-mcb"),
+        wire(componentEndpoint("mcb-a", "l1-out"), componentEndpoint("bulb-a", "l-in"), "l-load"),
+        wire(boardEndpoint("supply-n"), componentEndpoint("n-before", "n1"), "n-before-bus"),
+        wire(componentEndpoint("n-before", "n2"), componentEndpoint("bulb-a", "n-in"), "n-load")
+      ]
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_RCD_MISMATCH")).toBe(true);
+  });
+
+  it("errors when an outlet circuit has L and N but lacks required PE continuity", () => {
+    const project = completeCircuitProject();
+    const issues = circuitCompletenessPolicy({
+      ...project,
+      wires: project.wires.filter((wire) => wire.id !== "bus-load-pe")
+    });
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_PE_CONTINUITY")).toBe(true);
+  });
+
+  it("does not require PE for a bulb that only requires L and N", () => {
+    const issues = circuitCompletenessPolicy(completeCircuitProject(bulbLoad("bulb-a")));
+
+    expect(issues.some((issue) => issue.code === "CIRCUIT_PE_CONTINUITY")).toBe(false);
+    expect(issues).toHaveLength(0);
   });
 
   it("errors when a B16 MCB is wired with less than 2.5 mm2 cable", () => {

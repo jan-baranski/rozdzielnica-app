@@ -133,6 +133,35 @@ export const validationDocs: ValidationDoc[] = [
     ]
   },
   {
+    id: "circuit-completeness",
+    title: "Walidacja kompletności obwodu",
+    issueCodes: [
+      "CIRCUIT_L_CONTINUITY",
+      "CIRCUIT_N_CONTINUITY",
+      "CIRCUIT_PE_CONTINUITY",
+      "CIRCUIT_MISSING_BREAKER",
+      "CIRCUIT_MISSING_RCD",
+      "CIRCUIT_RCD_MISMATCH"
+    ],
+    description:
+      "Sprawdza, czy odbiorniki mają poprawny tor L, N i PE, czy L przechodzi przez zabezpieczenie nadprądowe oraz czy L i N są chronione tym samym RCD/RCBO.",
+    examples: [
+      "Odbiornik L/N/PE za RCD i MCB -> OK",
+      "Odbiornik podłączony bez MCB/RCBO -> Błąd",
+      "L za RCD A, a N za RCD B -> Błąd"
+    ],
+    rulesSummary: [
+      "Tor L musi mieć ciągłość do zasilania i przechodzić przez MCB/RCBO.",
+      "Tor L zwykłego obwodu końcowego musi przechodzić przez RCD/RCBO.",
+      "Tor N musi mieć ciągłość do zasilania i przechodzić przez ten sam RCD co L.",
+      "Tor PE jest wymagany tylko dla odbiorników, które deklarują PE."
+    ],
+    limitations: [
+      "To analiza grafu połączeń w edytorze, nie profesjonalna weryfikacja instalacji.",
+      "Niekompletne, jeszcze nietknięte odbiorniki bez połączeń są pomijane."
+    ]
+  },
+  {
     id: "missing-input",
     title: "Brak połączenia wejściowego",
     issueCodes: ["MISSING_INPUT"],

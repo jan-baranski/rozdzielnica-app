@@ -131,7 +131,10 @@ function endpointMeta(project: ProjectData): Map<string, EndpointMeta> {
   return meta;
 }
 
-function buildElectricalGraph(project: ProjectData, options: { omitRcdInternals?: boolean } = {}) {
+function buildElectricalGraph(
+  project: ProjectData,
+  options: { omitRcdInternals?: boolean; omitBreakerInternals?: boolean } = {}
+) {
   const graph = new Map<string, Set<string>>();
 
   project.wires.forEach((wire) => {
@@ -159,6 +162,10 @@ function buildElectricalGraph(project: ProjectData, options: { omitRcdInternals?
     }
 
     if (options.omitRcdInternals && (component.type === "rcd" || component.type === "rcbo")) {
+      return;
+    }
+
+    if (options.omitBreakerInternals && (component.type === "mcb" || component.type === "rcbo")) {
       return;
     }
 
@@ -248,6 +255,27 @@ function connectedRcdOutputs(
 
         return outputKeys.some((key) => reachable.has(key));
       })
+      .map((component) => component.id)
+  );
+}
+
+function connectedBreakerOutputs(
+  startKey: string,
+  project: ProjectData,
+  graphWithoutBreakerInternals: Map<string, Set<string>>,
+  meta: Map<string, EndpointMeta>
+) {
+  const reachable = reachableKeys(startKey, graphWithoutBreakerInternals, meta, new Set<Pole>(["L1", "L2", "L3"]));
+
+  return new Set(
+    project.components
+      .filter((component) => component.type === "mcb" || component.type === "rcbo")
+      .filter((component) =>
+        component.terminals
+          .filter((terminal) => terminal.role === "power_out" && terminal.pole.startsWith("L"))
+          .map((terminal) => endpointKey(terminalEndpoint(component.id, terminal.id)))
+          .some((key) => reachable.has(key))
+      )
       .map((component) => component.id)
   );
 }
@@ -360,6 +388,179 @@ export const neutralRcdCircuitPolicy: ValidationPolicy = (project) => {
           suggestion: "Poprowadź N przez ten sam RCD/RCBO albo listwę N przypisaną do tego RCD."
         });
       });
+    });
+
+  return issues;
+};
+
+function connectedEndpointKeys(wires: ProjectData["wires"]) {
+  const connected = new Set<string>();
+  wires.forEach((wire) => {
+    connected.add(endpointKey(wire.from));
+    connected.add(endpointKey(wire.to));
+  });
+  return connected;
+}
+
+function hasReachableBoardRole(
+  reachable: Set<string>,
+  meta: Map<string, EndpointMeta>,
+  role: "power_source" | "neutral_source" | "earth_source"
+) {
+  return [...reachable].some((key) => {
+    const item = meta.get(key);
+    return item?.endpoint.kind === "board_terminal" && item.role === role;
+  });
+}
+
+function terminalKey(component: BoardComponent, terminalId: string) {
+  return endpointKey(terminalEndpoint(component.id, terminalId));
+}
+
+function relatedLoadWireIds(componentId: string, wires: ProjectData["wires"]) {
+  return wires
+    .filter((wire) =>
+      [wire.from, wire.to].some(
+        (endpoint) => endpoint.kind === "component_terminal" && endpoint.componentId === componentId
+      )
+    )
+    .map((wire) => wire.id);
+}
+
+export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
+  const issues: ValidationIssue[] = [];
+  const seen = new Set<string>();
+  const meta = endpointMeta(project);
+  const fullGraph = buildElectricalGraph(project);
+  const graphWithoutRcdInternals = buildElectricalGraph(project, { omitRcdInternals: true });
+  const graphWithoutBreakerInternals = buildElectricalGraph(project, { omitBreakerInternals: true });
+  const connected = connectedEndpointKeys(project.wires);
+
+  function addIssue(issue: ValidationIssue) {
+    const key = [
+      issue.code,
+      issue.relatedComponents?.join(",") ?? "",
+      issue.relatedWires?.join(",") ?? ""
+    ].join("|");
+    if (!seen.has(key)) {
+      seen.add(key);
+      issues.push(issue);
+    }
+  }
+
+  project.components
+    .filter((component) => component.electrical.externalLoad)
+    .forEach((loadComponent) => {
+      const requiredPoles = loadComponent.electrical.requiredPoles ?? [];
+      const liveTerminals = loadComponent.terminals.filter((terminal) => terminal.pole.startsWith("L"));
+      const neutralTerminal = loadComponent.terminals.find((terminal) => terminal.pole === "N");
+      const peTerminal = loadComponent.terminals.find((terminal) => terminal.pole === "PE");
+      const loadWireIds = relatedLoadWireIds(loadComponent.id, project.wires);
+      const connectedLoadTerminals = loadComponent.terminals.filter((terminal) =>
+        connected.has(terminalKey(loadComponent, terminal.id))
+      );
+      const hasNonPeConnection = connectedLoadTerminals.some((terminal) => terminal.pole !== "PE");
+
+      if (!hasNonPeConnection) {
+        return;
+      }
+
+      const liveTerminal = liveTerminals[0];
+      const liveKey = liveTerminal ? terminalKey(loadComponent, liveTerminal.id) : "";
+      const liveReachable = liveKey
+        ? reachableKeys(liveKey, fullGraph, meta, new Set<Pole>(["L1", "L2", "L3"]))
+        : new Set<string>();
+      const liveHasSource = hasReachableBoardRole(liveReachable, meta, "power_source");
+      const liveBreakers = liveKey
+        ? connectedBreakerOutputs(liveKey, project, graphWithoutBreakerInternals, meta)
+        : new Set<string>();
+      const liveRcds = liveKey
+        ? connectedRcdOutputs(liveKey, project, graphWithoutRcdInternals, meta, "live")
+        : new Set<string>();
+
+      if (!liveTerminal || !connected.has(liveKey) || !liveHasSource) {
+        addIssue({
+          severity: "error",
+          code: "CIRCUIT_L_CONTINUITY",
+          message: "Odbiornik ma niepoprawny tor L - brak ciaglosci z zasilaniem.",
+          relatedComponents: [loadComponent.id],
+          relatedWires: loadWireIds,
+          suggestion: "Polacz tor L odbiornika z zasilaniem przez wlasciwe aparaty zabezpieczajace."
+        });
+      }
+
+      if (liveTerminal && connected.has(liveKey) && liveBreakers.size === 0) {
+        addIssue({
+          severity: "error",
+          code: "CIRCUIT_MISSING_BREAKER",
+          message: "Odbiornik jest podlaczony do L bez zabezpieczenia nadpradowego MCB/RCBO.",
+          relatedComponents: [loadComponent.id],
+          relatedWires: loadWireIds,
+          suggestion: "Poprowadz tor L przez MCB albo RCBO."
+        });
+      }
+
+      if (liveTerminal && connected.has(liveKey) && liveRcds.size === 0) {
+        addIssue({
+          severity: "error",
+          code: "CIRCUIT_MISSING_RCD",
+          message: "Obwod odbiornika nie przechodzi przez RCD/RCBO.",
+          relatedComponents: [loadComponent.id, ...liveBreakers],
+          relatedWires: loadWireIds,
+          suggestion: "Poprowadz obwod koncowy przez RCD albo RCBO."
+        });
+      }
+
+      if (requiredPoles.includes("N") || neutralTerminal) {
+        const neutralKey = neutralTerminal ? terminalKey(loadComponent, neutralTerminal.id) : "";
+        const neutralReachable = neutralKey
+          ? reachableKeys(neutralKey, fullGraph, meta, new Set<Pole>(["N"]))
+          : new Set<string>();
+        const neutralHasSource = hasReachableBoardRole(neutralReachable, meta, "neutral_source");
+        const neutralRcds = neutralKey
+          ? connectedRcdOutputs(neutralKey, project, graphWithoutRcdInternals, meta, "neutral")
+          : new Set<string>();
+
+        if (!neutralTerminal || !connected.has(neutralKey) || !neutralHasSource) {
+          addIssue({
+            severity: "error",
+            code: "CIRCUIT_N_CONTINUITY",
+            message: "Odbiornik ma niepoprawny tor N - brak ciaglosci neutralnego z zasilaniem.",
+            relatedComponents: [loadComponent.id],
+            relatedWires: loadWireIds,
+            suggestion: "Polacz N odbiornika z listwa N i zasilaniem przez wlasciwy tor neutralny."
+          });
+        }
+
+        const matchingRcds = [...liveRcds].filter((id) => neutralRcds.has(id));
+        if (liveRcds.size > 0 && matchingRcds.length === 0) {
+          addIssue({
+            severity: "error",
+            code: "CIRCUIT_RCD_MISMATCH",
+            message: "Tor L i N odbiornika nie przechodza przez ten sam RCD.",
+            relatedComponents: [loadComponent.id, ...liveRcds, ...neutralRcds],
+            relatedWires: loadWireIds,
+            suggestion: "Poprowadz L i N odbiornika przez ten sam RCD/RCBO albo przypisana do niego listwe N."
+          });
+        }
+      }
+
+      if (requiredPoles.includes("PE")) {
+        const peKey = peTerminal ? terminalKey(loadComponent, peTerminal.id) : "";
+        const peReachable = peKey ? reachableKeys(peKey, fullGraph, meta, new Set<Pole>(["PE"])) : new Set<string>();
+        const peHasSource = hasReachableBoardRole(peReachable, meta, "earth_source");
+
+        if (!peTerminal || !connected.has(peKey) || !peHasSource) {
+          addIssue({
+            severity: "error",
+            code: "CIRCUIT_PE_CONTINUITY",
+            message: "Odbiornik wymaga PE, ale przewod ochronny nie ma ciaglosci z szyna PE / wejsciem PE.",
+            relatedComponents: [loadComponent.id],
+            relatedWires: loadWireIds,
+            suggestion: "Polacz PE odbiornika z listwa PE i zaciskiem PE zasilania."
+          });
+        }
+      }
     });
 
   return issues;
@@ -908,6 +1109,7 @@ export const validationPolicies: ValidationPolicy[] = [
   peConnectionPolicy,
   neutralConnectionPolicy,
   neutralRcdCircuitPolicy,
+  circuitCompletenessPolicy,
   cableGaugePolicy,
   circuitLoadPolicy,
   breakerGroupingPolicy,
