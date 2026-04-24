@@ -27,6 +27,8 @@ interface EndpointRoute {
 }
 
 const CATALOG_POINTER_DRAG_START = "catalog-pointer-drag-start";
+const dragThresholdPx = 6;
+const longPressThresholdMs = 350;
 
 type DragPlacement = {
   layout: BoardComponent["layout"];
@@ -285,12 +287,26 @@ function supplyClass(terminal: BoardTerminal): string {
 export function BoardView() {
   const dragIndicatorRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const componentGestureRef = useRef<{
+    componentId: string;
+    pointerId: number;
+    pointerStartX: number;
+    pointerStartY: number;
+    pointerDownTime: number;
+    hasMoved: boolean;
+    isDragging: boolean;
+    pendingTapComponentId: string | null;
+    cleanup: () => void;
+    longPressTimer: number | null;
+    longPressed: boolean;
+  } | null>(null);
   const pointerDragRef = useRef<{
     source: { catalogId?: string; componentId?: string };
     placement: DragPlacement | null;
     overBoard: boolean;
   } | null>(null);
   const cleanupPointerDragRef = useRef<(() => void) | null>(null);
+  const suppressNextComponentClickRef = useRef<string | null>(null);
   const {
     board,
     components,
@@ -544,7 +560,13 @@ export function BoardView() {
     [clearActiveDragState, commitDragPlacement, dragPlacementFromClientPoint, hideDragIndicator, showDragIndicator]
   );
 
-  useEffect(() => () => cleanupPointerDragRef.current?.(), []);
+  useEffect(
+    () => () => {
+      componentGestureRef.current?.cleanup();
+      cleanupPointerDragRef.current?.();
+    },
+    []
+  );
 
   useEffect(() => {
     const onCatalogPointerDragStart = (event: Event) => {
@@ -561,19 +583,147 @@ export function BoardView() {
     return () => window.removeEventListener(CATALOG_POINTER_DRAG_START, onCatalogPointerDragStart);
   }, [beginPointerDrag]);
 
-  const startComponentPointerDrag = useCallback(
+  const suppressNextComponentClick = useCallback((componentId: string) => {
+    suppressNextComponentClickRef.current = componentId;
+    window.setTimeout(() => {
+      if (suppressNextComponentClickRef.current === componentId) {
+        suppressNextComponentClickRef.current = null;
+      }
+    }, 500);
+  }, []);
+
+  const selectComponentFromClick = useCallback(
+    (componentId: string) => {
+      if (suppressNextComponentClickRef.current === componentId) {
+        suppressNextComponentClickRef.current = null;
+        return;
+      }
+
+      selectItem({ kind: "component", id: componentId });
+    },
+    [selectItem]
+  );
+
+  const startComponentPointerGesture = useCallback(
     (componentId: string, event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.pointerType === "mouse") {
         return;
       }
 
-      event.preventDefault();
       event.stopPropagation();
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      selectItem({ kind: "component", id: componentId });
-      beginPointerDrag({ componentId }, event.pointerId, event.clientX, event.clientY);
+      componentGestureRef.current?.cleanup();
+
+      const pointerId = event.pointerId;
+      const pointerStartX = event.clientX;
+      const pointerStartY = event.clientY;
+
+      const cleanup = () => {
+        const gesture = componentGestureRef.current;
+        if (gesture?.longPressTimer) {
+          window.clearTimeout(gesture.longPressTimer);
+        }
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerCancel);
+        if (componentGestureRef.current?.pointerId === pointerId) {
+          componentGestureRef.current = null;
+        }
+      };
+
+      const startDrag = (clientX: number, clientY: number) => {
+        const gesture = componentGestureRef.current;
+        if (!gesture || gesture.isDragging) {
+          return;
+        }
+
+        gesture.isDragging = true;
+        gesture.pendingTapComponentId = null;
+        suppressNextComponentClick(componentId);
+        beginPointerDrag({ componentId }, pointerId, clientX, clientY);
+      };
+
+      function onPointerMove(pointerEvent: PointerEvent) {
+        const gesture = componentGestureRef.current;
+        if (!gesture || pointerEvent.pointerId !== pointerId) {
+          return;
+        }
+
+        const distance = Math.hypot(pointerEvent.clientX - gesture.pointerStartX, pointerEvent.clientY - gesture.pointerStartY);
+        if (distance > dragThresholdPx) {
+          gesture.hasMoved = true;
+          pointerEvent.preventDefault();
+          startDrag(pointerEvent.clientX, pointerEvent.clientY);
+        }
+      }
+
+      function onPointerUp(pointerEvent: PointerEvent) {
+        const gesture = componentGestureRef.current;
+        if (!gesture || pointerEvent.pointerId !== pointerId) {
+          return;
+        }
+
+        const distance = Math.hypot(pointerEvent.clientX - gesture.pointerStartX, pointerEvent.clientY - gesture.pointerStartY);
+        const elapsedMs = window.performance.now() - gesture.pointerDownTime;
+        const isTap =
+          !gesture.isDragging &&
+          !gesture.longPressed &&
+          !gesture.hasMoved &&
+          elapsedMs <= longPressThresholdMs &&
+          distance <= dragThresholdPx &&
+          gesture.pendingTapComponentId === componentId;
+
+        if (!isTap) {
+          suppressNextComponentClick(componentId);
+        }
+        cleanup();
+
+        if (isTap) {
+          pointerEvent.preventDefault();
+          suppressNextComponentClick(componentId);
+          selectItem({ kind: "component", id: componentId });
+        }
+      }
+
+      function onPointerCancel(pointerEvent: PointerEvent) {
+        if (pointerEvent.pointerId !== pointerId) {
+          return;
+        }
+
+        suppressNextComponentClick(componentId);
+        cleanup();
+      }
+
+      const longPressTimer = window.setTimeout(() => {
+        const gesture = componentGestureRef.current;
+        if (!gesture || gesture.pointerId !== pointerId || gesture.hasMoved || gesture.isDragging) {
+          return;
+        }
+
+        gesture.longPressed = true;
+        gesture.pendingTapComponentId = null;
+        suppressNextComponentClick(componentId);
+      }, longPressThresholdMs);
+
+      componentGestureRef.current = {
+        componentId,
+        pointerId,
+        pointerStartX,
+        pointerStartY,
+        pointerDownTime: window.performance.now(),
+        hasMoved: false,
+        isDragging: false,
+        pendingTapComponentId: componentId,
+        cleanup,
+        longPressTimer,
+        longPressed: false
+      };
+
+      window.addEventListener("pointermove", onPointerMove, { passive: false });
+      window.addEventListener("pointerup", onPointerUp, { passive: false });
+      window.addEventListener("pointercancel", onPointerCancel, { passive: false });
     },
-    [beginPointerDrag, selectItem]
+    [beginPointerDrag, selectItem, suppressNextComponentClick]
   );
 
   return (
@@ -787,8 +937,8 @@ export function BoardView() {
               selected={selectedItem?.kind === "component" && selectedItem.id === component.id}
               hasError={componentIssueIds.has(component.id)}
               highlightedTerminals={selectedWireEndpoints}
-              onSelect={() => selectItem({ kind: "component", id: component.id })}
-              onPointerDragStart={(event) => startComponentPointerDrag(component.id, event)}
+              onSelect={() => selectComponentFromClick(component.id)}
+              onPointerDragStart={(event) => startComponentPointerGesture(component.id, event)}
               onTerminalClick={(terminalId) =>
                 clickTerminal({ kind: "component_terminal", componentId: component.id, terminalId })
               }
