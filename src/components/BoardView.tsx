@@ -284,7 +284,11 @@ function supplyClass(terminal: BoardTerminal): string {
   return "border-[#5a3514] bg-[#93602c]";
 }
 
-export function BoardView() {
+interface BoardViewProps {
+  propertiesOpen: boolean;
+}
+
+export function BoardView({ propertiesOpen }: BoardViewProps) {
   const dragIndicatorRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const componentGestureRef = useRef<{
@@ -482,9 +486,12 @@ export function BoardView() {
 
       if (source.componentId) {
         moveComponent(source.componentId, placement.layout);
+        if (propertiesOpen) {
+          selectItem({ kind: "component", id: source.componentId });
+        }
       }
     },
-    [addComponent, moveComponent]
+    [addComponent, moveComponent, propertiesOpen, selectItem]
   );
 
   const clearActiveDragState = useCallback(() => {
