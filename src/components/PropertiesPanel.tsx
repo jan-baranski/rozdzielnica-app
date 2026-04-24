@@ -79,51 +79,27 @@ export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
         </button>
       </div>
 
-      <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Rozmiar rozdzielnicy</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block text-xs font-semibold text-[#667085]" htmlFor="board-rows">
-            Rzędy
-            <input
-              id="board-rows"
-              type="number"
-              min={1}
-              max={8}
-              value={board.rows.length}
-              onChange={(event) =>
-                updateBoardSize({
-                  rowCount: Number(event.target.value),
-                  modulesPerRow: board.widthModulesPerRow
-                })
-              }
-              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
-            />
-          </label>
-          <label className="block text-xs font-semibold text-[#667085]" htmlFor="board-modules">
-            Moduły / rząd
-            <input
-              id="board-modules"
-              type="number"
-              min={6}
-              max={48}
-              value={board.widthModulesPerRow}
-              onChange={(event) =>
-                updateBoardSize({
-                  rowCount: board.rows.length,
-                  modulesPerRow: Number(event.target.value)
-                })
-              }
-              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
-            />
-          </label>
-        </div>
-        <div className="mt-3 flex items-center justify-between text-xs text-[#667085]">
-          <span>Pojemność</span>
-          <span className="font-semibold text-[#344054]">
-            {board.rows.length * board.widthModulesPerRow}M
-          </span>
-        </div>
-      </section>
+      {selectedComponent || selectedWire ? (
+        <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Akcje</h3>
+          {selectedComponent ? (
+            <button
+              onClick={() => removeComponent(selectedComponent.id)}
+              className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
+            >
+              Usuń aparat
+            </button>
+          ) : null}
+          {selectedWire ? (
+            <button
+              onClick={() => removeWire(selectedWire.id)}
+              className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
+            >
+              Usuń przewód
+            </button>
+          ) : null}
+        </section>
+      ) : null}
 
       {!selectedComponent && !selectedWire && !selectedTerminal ? (
         <div className="mt-4 rounded border border-[#d4dce7] bg-white p-4 text-sm text-[#667085]">
@@ -210,13 +186,6 @@ export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
               ))}
             </div>
           </section>
-
-          <button
-            onClick={() => removeComponent(selectedComponent.id)}
-            className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
-          >
-            Usuń aparat
-          </button>
         </div>
       ) : null}
 
@@ -278,12 +247,6 @@ export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
               />
             </label>
           </section>
-          <button
-            onClick={() => removeWire(selectedWire.id)}
-            className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
-          >
-            Usuń przewód
-          </button>
         </div>
       ) : null}
 
@@ -337,6 +300,52 @@ export function PropertiesPanel({ open, onToggle }: PropertiesPanelProps) {
           </div>
         </section>
       ) : null}
+
+      <section className="mt-4 rounded border border-[#d4dce7] bg-white p-4">
+        <h3 className="mb-3 text-xs font-semibold uppercase text-[#667085]">Rozmiar rozdzielnicy</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-xs font-semibold text-[#667085]" htmlFor="board-rows">
+            Rzędy
+            <input
+              id="board-rows"
+              type="number"
+              min={1}
+              max={8}
+              value={board.rows.length}
+              onChange={(event) =>
+                updateBoardSize({
+                  rowCount: Number(event.target.value),
+                  modulesPerRow: board.widthModulesPerRow
+                })
+              }
+              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-[#667085]" htmlFor="board-modules">
+            Moduły / rząd
+            <input
+              id="board-modules"
+              type="number"
+              min={6}
+              max={48}
+              value={board.widthModulesPerRow}
+              onChange={(event) =>
+                updateBoardSize({
+                  rowCount: board.rows.length,
+                  modulesPerRow: Number(event.target.value)
+                })
+              }
+              className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
+            />
+          </label>
+        </div>
+        <div className="mt-3 flex items-center justify-between text-xs text-[#667085]">
+          <span>Pojemność</span>
+          <span className="font-semibold text-[#344054]">
+            {board.rows.length * board.widthModulesPerRow}M
+          </span>
+        </div>
+      </section>
     </aside>
   );
 }

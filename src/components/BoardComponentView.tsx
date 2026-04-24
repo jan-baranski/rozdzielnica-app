@@ -1,5 +1,6 @@
 "use client";
 
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { MODULE_HEIGHT_PX, MODULE_WIDTH_PX, ROW_GAP, TERMINAL_HIT_SIZE } from "@/domain/constants";
 import type { BoardComponent, Terminal } from "@/domain/types";
 import { endpointKey } from "@/domain/connectivityEngine";
@@ -60,6 +61,7 @@ export function BoardComponentView({
   hasError,
   highlightedTerminals,
   onSelect,
+  onPointerDragStart,
   onTerminalClick
 }: {
   component: BoardComponent;
@@ -69,6 +71,7 @@ export function BoardComponentView({
   hasError: boolean;
   highlightedTerminals?: Set<string>;
   onSelect: () => void;
+  onPointerDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onTerminalClick: (terminalId: string) => void;
 }) {
   const pendingTerminal = useBoardStore((state) => state.pendingTerminal);
@@ -101,7 +104,8 @@ export function BoardComponentView({
         event.stopPropagation();
         onSelect();
       }}
-      className="component-shadow absolute z-30 cursor-move"
+      onPointerDown={(event) => onPointerDragStart?.(event)}
+      className="component-shadow absolute z-30 cursor-move touch-none"
       style={{
         width: visualSize.width,
         height: visualSize.height,
@@ -138,6 +142,7 @@ export function BoardComponentView({
                     event.stopPropagation();
                     onTerminalClick(terminal.id);
                   }}
+                  onPointerDown={(event) => event.stopPropagation()}
                   className={[
                     "absolute z-30 rounded-full border shadow-sm transition-all",
                     terminalClass(terminal),

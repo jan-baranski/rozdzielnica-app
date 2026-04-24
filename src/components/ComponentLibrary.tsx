@@ -1,7 +1,10 @@
 "use client";
 
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { catalogItems } from "@/domain/catalog";
 import { activeDragState } from "@/store/useBoardStore";
+
+const CATALOG_POINTER_DRAG_START = "catalog-pointer-drag-start";
 
 const categoryLabels: Record<string, string> = {
   Protection: "Zabezpieczenia",
@@ -24,6 +27,23 @@ export function ComponentLibrary({ className = "", onComponentDragStart }: Compo
     acc[item.category].push(item);
     return acc;
   }, {});
+
+  const startCatalogPointerDrag = (itemId: string, event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse") {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    activeDragState.catalogId = itemId;
+    activeDragState.componentId = undefined;
+    window.dispatchEvent(
+      new CustomEvent(CATALOG_POINTER_DRAG_START, {
+        detail: { catalogId: itemId, pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY }
+      })
+    );
+    onComponentDragStart?.();
+  };
 
   return (
     <aside className={`min-h-0 overflow-y-auto border-r border-[#c8d1dc] bg-[#f8fafc] p-4 ${className}`}>
@@ -50,7 +70,8 @@ export function ComponentLibrary({ className = "", onComponentDragStart }: Compo
                     activeDragState.componentId = undefined;
                     onComponentDragStart?.();
                   }}
-                  className="flex w-full items-center gap-3 rounded border border-[#d4dce7] bg-white p-2 text-left shadow-sm transition hover:border-[#2f80ed] hover:bg-[#f4f9ff]"
+                  onPointerDown={(event) => startCatalogPointerDrag(item.id, event)}
+                  className="flex w-full touch-none items-center gap-3 rounded border border-[#d4dce7] bg-white p-2 text-left shadow-sm transition hover:border-[#2f80ed] hover:bg-[#f4f9ff]"
                 >
                   <img
                     src={item.visual.src}

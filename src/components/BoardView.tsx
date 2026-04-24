@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { findCatalogItem } from "@/domain/catalog";
 import {
   EXTERNAL_ZONE_WIDTH_PX,
@@ -10,7 +11,7 @@ import {
   TERMINAL_HIT_SIZE
 } from "@/domain/constants";
 import { endpointKey } from "@/domain/connectivityEngine";
-import type { Board, BoardComponent, BoardTerminal, Pole, WireConnection, WireEndpoint } from "@/domain/types";
+import type { Board, BoardComponent, BoardTerminal, CatalogItem, Pole, WireConnection, WireEndpoint } from "@/domain/types";
 import { getCatalogVisual, useBoardStore, activeDragState } from "@/store/useBoardStore";
 import { BoardComponentView } from "./BoardComponentView";
 
@@ -24,6 +25,13 @@ interface EndpointRoute {
   approachY: number;
   bounds?: { left: number; right: number; top: number; bottom: number };
 }
+
+const CATALOG_POINTER_DRAG_START = "catalog-pointer-drag-start";
+
+type DragPlacement = {
+  layout: BoardComponent["layout"];
+  indicator: { left: number; top: number; width: number; height: number };
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -276,6 +284,13 @@ function supplyClass(terminal: BoardTerminal): string {
 
 export function BoardView() {
   const dragIndicatorRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const pointerDragRef = useRef<{
+    source: { catalogId?: string; componentId?: string };
+    placement: DragPlacement | null;
+    overBoard: boolean;
+  } | null>(null);
+  const cleanupPointerDragRef = useRef<(() => void) | null>(null);
   const {
     board,
     components,
@@ -331,6 +346,236 @@ export function BoardView() {
     return new Set([endpointKey(wire.from), endpointKey(wire.to)]);
   }, [selectedItem, wires]);
 
+  const resolveDragPlacement = useCallback(
+    (x: number, y: number, catalogItem?: CatalogItem, moving?: BoardComponent): DragPlacement | null => {
+      if (catalogItem) {
+        if (catalogItem.placementMode === "free") {
+          const size = {
+            width: catalogItem.visual.widthPx ?? Math.max(120, catalogItem.moduleWidth * MODULE_WIDTH_PX),
+            height: catalogItem.visual.heightPx ?? 28
+          };
+          const left = clamp(
+            x - size.width / 2,
+            0,
+            Math.max(0, (catalogItem.electricalTemplate.externalLoad ? workspaceWidth : boardWidth) - size.width)
+          );
+          const top = clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height));
+          return {
+            layout: { placementMode: "free", x: left, y: top },
+            indicator: { left, top, width: size.width, height: size.height }
+          };
+        }
+
+        const maxStart = Math.max(0, board.widthModulesPerRow - catalogItem.moduleWidth);
+        const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
+        const row = clamp(Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)), 0, board.rows.length - 1);
+        return {
+          layout: { placementMode: "din_module", row, startModule },
+          indicator: {
+            left: startModule * MODULE_WIDTH_PX,
+            top: row * (MODULE_HEIGHT_PX + ROW_GAP),
+            width: catalogItem.moduleWidth * MODULE_WIDTH_PX,
+            height: MODULE_HEIGHT_PX
+          }
+        };
+      }
+
+      if (!moving) {
+        return null;
+      }
+
+      if (moving.placementMode === "free") {
+        const size = componentVisualSize(moving);
+        const left = clamp(
+          x - size.width / 2,
+          0,
+          Math.max(0, (moving.electrical.externalLoad ? workspaceWidth : boardWidth) - size.width)
+        );
+        const top = clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height));
+        return {
+          layout: { placementMode: "free", x: left, y: top },
+          indicator: { left, top, width: size.width, height: size.height }
+        };
+      }
+
+      const maxStart = Math.max(0, board.widthModulesPerRow - moving.moduleWidth);
+      const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
+      const row = clamp(Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)), 0, board.rows.length - 1);
+      return {
+        layout: { placementMode: "din_module", row, startModule },
+        indicator: {
+          left: startModule * MODULE_WIDTH_PX,
+          top: row * (MODULE_HEIGHT_PX + ROW_GAP),
+          width: moving.moduleWidth * MODULE_WIDTH_PX,
+          height: MODULE_HEIGHT_PX
+        }
+      };
+    },
+    [board.rows.length, board.widthModulesPerRow, boardHeight, boardWidth, workspaceWidth]
+  );
+
+  const showDragIndicator = useCallback((placement: DragPlacement) => {
+    if (!dragIndicatorRef.current) {
+      return;
+    }
+
+    dragIndicatorRef.current.style.display = "block";
+    dragIndicatorRef.current.style.left = `${placement.indicator.left}px`;
+    dragIndicatorRef.current.style.top = `${placement.indicator.top}px`;
+    dragIndicatorRef.current.style.width = `${placement.indicator.width}px`;
+    dragIndicatorRef.current.style.height = `${placement.indicator.height}px`;
+  }, []);
+
+  const hideDragIndicator = useCallback(() => {
+    if (dragIndicatorRef.current) {
+      dragIndicatorRef.current.style.display = "none";
+    }
+  }, []);
+
+  const dragPlacementFromClientPoint = useCallback(
+    (clientX: number, clientY: number, source: { catalogId?: string; componentId?: string }) => {
+      const workspace = workspaceRef.current;
+      if (!workspace) {
+        return { overBoard: false, placement: null };
+      }
+
+      const rect = workspace.getBoundingClientRect();
+      const overBoard =
+        clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+      if (!overBoard) {
+        return { overBoard: false, placement: null };
+      }
+
+      const x = (clientX - rect.left) / boardZoom;
+      const y = (clientY - rect.top) / boardZoom;
+      const catalogItem = source.catalogId ? findCatalogItem(source.catalogId) : undefined;
+      const moving = source.componentId ? components.find((component) => component.id === source.componentId) : undefined;
+
+      return { overBoard: true, placement: resolveDragPlacement(x, y, catalogItem, moving) };
+    },
+    [boardZoom, components, resolveDragPlacement]
+  );
+
+  const commitDragPlacement = useCallback(
+    (source: { catalogId?: string; componentId?: string }, placement: DragPlacement) => {
+      const catalogItem = source.catalogId ? findCatalogItem(source.catalogId) : undefined;
+      if (catalogItem) {
+        addComponent(catalogItem, placement.layout);
+        return;
+      }
+
+      if (source.componentId) {
+        moveComponent(source.componentId, placement.layout);
+      }
+    },
+    [addComponent, moveComponent]
+  );
+
+  const clearActiveDragState = useCallback(() => {
+    activeDragState.catalogId = undefined;
+    activeDragState.componentId = undefined;
+  }, []);
+
+  const beginPointerDrag = useCallback(
+    (source: { catalogId?: string; componentId?: string }, pointerId: number, clientX: number, clientY: number) => {
+      cleanupPointerDragRef.current?.();
+
+      activeDragState.catalogId = source.catalogId;
+      activeDragState.componentId = source.componentId;
+      pointerDragRef.current = { source, placement: null, overBoard: false };
+
+      const update = (nextClientX: number, nextClientY: number) => {
+        const next = dragPlacementFromClientPoint(nextClientX, nextClientY, source);
+        pointerDragRef.current = { source, placement: next.placement, overBoard: next.overBoard };
+        if (next.overBoard && next.placement) {
+          showDragIndicator(next.placement);
+        } else {
+          hideDragIndicator();
+        }
+      };
+
+      const cleanup = () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerCancel);
+        cleanupPointerDragRef.current = null;
+      };
+
+      const finish = (event: PointerEvent, commit: boolean) => {
+        if (event.pointerId !== pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        const current = pointerDragRef.current;
+        if (commit && current?.overBoard && current.placement) {
+          commitDragPlacement(current.source, current.placement);
+        }
+
+        pointerDragRef.current = null;
+        hideDragIndicator();
+        clearActiveDragState();
+        cleanup();
+      };
+
+      function onPointerMove(event: PointerEvent) {
+        if (event.pointerId !== pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        update(event.clientX, event.clientY);
+      }
+
+      function onPointerUp(event: PointerEvent) {
+        finish(event, true);
+      }
+
+      function onPointerCancel(event: PointerEvent) {
+        finish(event, false);
+      }
+
+      window.addEventListener("pointermove", onPointerMove, { passive: false });
+      window.addEventListener("pointerup", onPointerUp, { passive: false });
+      window.addEventListener("pointercancel", onPointerCancel, { passive: false });
+      cleanupPointerDragRef.current = cleanup;
+      update(clientX, clientY);
+    },
+    [clearActiveDragState, commitDragPlacement, dragPlacementFromClientPoint, hideDragIndicator, showDragIndicator]
+  );
+
+  useEffect(() => () => cleanupPointerDragRef.current?.(), []);
+
+  useEffect(() => {
+    const onCatalogPointerDragStart = (event: Event) => {
+      const detail = (event as CustomEvent<{ catalogId: string; pointerId: number; clientX: number; clientY: number }>)
+        .detail;
+      if (!detail?.catalogId || !findCatalogItem(detail.catalogId)) {
+        return;
+      }
+
+      beginPointerDrag({ catalogId: detail.catalogId }, detail.pointerId, detail.clientX, detail.clientY);
+    };
+
+    window.addEventListener(CATALOG_POINTER_DRAG_START, onCatalogPointerDragStart);
+    return () => window.removeEventListener(CATALOG_POINTER_DRAG_START, onCatalogPointerDragStart);
+  }, [beginPointerDrag]);
+
+  const startComponentPointerDrag = useCallback(
+    (componentId: string, event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      selectItem({ kind: "component", id: componentId });
+      beginPointerDrag({ componentId }, event.pointerId, event.clientX, event.clientY);
+    },
+    [beginPointerDrag, selectItem]
+  );
+
   return (
     <section className="h-full min-w-0 overflow-auto bg-[#e7edf3] p-3 sm:p-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -375,6 +620,7 @@ export function BoardView() {
       <div className="inline-block rounded bg-[#d9e1ea] p-3 shadow-panel sm:p-5">
         <div style={{ width: workspaceWidth * boardZoom, height: boardHeight * boardZoom }}>
         <div
+          ref={workspaceRef}
           className="relative overflow-visible rounded border border-[#a8b4c3] bg-[#eef3f8]"
           style={{
             width: workspaceWidth,
@@ -387,141 +633,45 @@ export function BoardView() {
             event.dataTransfer.dropEffect = event.dataTransfer.types.includes("application/x-component-id")
               ? "move"
               : "copy";
-              
-            if (!dragIndicatorRef.current) return;
-            
+
             const rect = event.currentTarget.getBoundingClientRect();
             const x = (event.clientX - rect.left) / boardZoom;
             const y = (event.clientY - rect.top) / boardZoom;
-            
-            const catalogId = activeDragState.catalogId;
-            const componentId = activeDragState.componentId;
-            const catalogItem = catalogId ? findCatalogItem(catalogId) : undefined;
-            const moving = componentId ? components.find((component) => component.id === componentId) : undefined;
-            const width = catalogItem?.moduleWidth ?? moving?.moduleWidth ?? 1;
-            const placementMode = catalogItem?.placementMode ?? moving?.placementMode ?? "din_module";
 
-            let finalX = 0;
-            let finalY = 0;
-            let finalWidth = 0;
-            let finalHeight = 0;
+            const catalogItem = activeDragState.catalogId ? findCatalogItem(activeDragState.catalogId) : undefined;
+            const moving = activeDragState.componentId
+              ? components.find((component) => component.id === activeDragState.componentId)
+              : undefined;
+            const placement = resolveDragPlacement(x, y, catalogItem, moving);
 
-            if (catalogItem) {
-              if (placementMode === "free") {
-                const size = {
-                  width: catalogItem.visual.widthPx ?? Math.max(120, catalogItem.moduleWidth * MODULE_WIDTH_PX),
-                  height: catalogItem.visual.heightPx ?? 28
-                };
-                finalX = clamp(
-                  x - size.width / 2,
-                  0,
-                  Math.max(0, (catalogItem.electricalTemplate.externalLoad ? workspaceWidth : boardWidth) - size.width)
-                );
-                finalY = clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height));
-                finalWidth = size.width;
-                finalHeight = size.height;
-              } else {
-                const maxStart = Math.max(0, board.widthModulesPerRow - width);
-                const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
-                const row = clamp(Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)), 0, board.rows.length - 1);
-                finalX = startModule * MODULE_WIDTH_PX;
-                finalY = row * (MODULE_HEIGHT_PX + ROW_GAP);
-                finalWidth = width * MODULE_WIDTH_PX;
-                finalHeight = MODULE_HEIGHT_PX;
-              }
-            } else if (moving) {
-              if (moving.placementMode === "free") {
-                const size = componentVisualSize(moving);
-                finalX = clamp(
-                  x - size.width / 2,
-                  0,
-                  Math.max(0, (moving.electrical.externalLoad ? workspaceWidth : boardWidth) - size.width)
-                );
-                finalY = clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height));
-                finalWidth = size.width;
-                finalHeight = size.height;
-              } else {
-                const maxStart = Math.max(0, board.widthModulesPerRow - width);
-                const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
-                const row = clamp(Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)), 0, board.rows.length - 1);
-                finalX = startModule * MODULE_WIDTH_PX;
-                finalY = row * (MODULE_HEIGHT_PX + ROW_GAP);
-                finalWidth = width * MODULE_WIDTH_PX;
-                finalHeight = MODULE_HEIGHT_PX;
-              }
-            }
-            
-            if (finalWidth > 0) {
-               dragIndicatorRef.current.style.display = "block";
-               dragIndicatorRef.current.style.left = `${finalX}px`;
-               dragIndicatorRef.current.style.top = `${finalY}px`;
-               dragIndicatorRef.current.style.width = `${finalWidth}px`;
-               dragIndicatorRef.current.style.height = `${finalHeight}px`;
+            if (placement) {
+              showDragIndicator(placement);
+            } else {
+              hideDragIndicator();
             }
           }}
           onDragLeave={() => {
-            if (dragIndicatorRef.current) {
-               dragIndicatorRef.current.style.display = "none";
-            }
+            hideDragIndicator();
           }}
           onDrop={(event) => {
             event.preventDefault();
-            if (dragIndicatorRef.current) {
-               dragIndicatorRef.current.style.display = "none";
-            }
+            hideDragIndicator();
             const rect = event.currentTarget.getBoundingClientRect();
             const x = (event.clientX - rect.left) / boardZoom;
             const y = (event.clientY - rect.top) / boardZoom;
-            const row = clamp(
-              Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)),
-              0,
-              board.rows.length - 1
-            );
-            const catalogId = event.dataTransfer.getData("application/x-catalog-id");
-            const componentId = event.dataTransfer.getData("application/x-component-id");
-            const catalogItem = catalogId ? findCatalogItem(catalogId) : undefined;
-            const moving = componentId ? components.find((component) => component.id === componentId) : undefined;
-            const width = catalogItem?.moduleWidth ?? moving?.moduleWidth ?? 1;
-            const placementMode = catalogItem?.placementMode ?? moving?.placementMode ?? "din_module";
 
-            if (catalogItem) {
-              if (placementMode === "free") {
-                const size = {
-                  width: catalogItem.visual.widthPx ?? Math.max(120, catalogItem.moduleWidth * MODULE_WIDTH_PX),
-                  height: catalogItem.visual.heightPx
-                };
-                addComponent(catalogItem, {
-                  placementMode: "free",
-                  x: clamp(
-                    x - size.width / 2,
-                    0,
-                    Math.max(0, (catalogItem.electricalTemplate.externalLoad ? workspaceWidth : boardWidth) - size.width)
-                  ),
-                  y: clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height))
-                });
-              } else {
-                const maxStart = Math.max(0, board.widthModulesPerRow - width);
-                const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
-                addComponent(catalogItem, { placementMode: "din_module", row, startModule });
-              }
-            } else if (moving) {
-              if (moving.placementMode === "free") {
-                const size = componentVisualSize(moving);
-                moveComponent(moving.id, {
-                  placementMode: "free",
-                  x: clamp(
-                    x - size.width / 2,
-                    0,
-                    Math.max(0, (moving.electrical.externalLoad ? workspaceWidth : boardWidth) - size.width)
-                  ),
-                  y: clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height))
-                });
-              } else {
-                const maxStart = Math.max(0, board.widthModulesPerRow - width);
-                const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
-                moveComponent(moving.id, { placementMode: "din_module", row, startModule });
-              }
+            const source = {
+              catalogId: event.dataTransfer.getData("application/x-catalog-id") || activeDragState.catalogId,
+              componentId: event.dataTransfer.getData("application/x-component-id") || activeDragState.componentId
+            };
+            const catalogItem = source.catalogId ? findCatalogItem(source.catalogId) : undefined;
+            const moving = source.componentId ? components.find((component) => component.id === source.componentId) : undefined;
+            const placement = resolveDragPlacement(x, y, catalogItem, moving);
+
+            if (placement) {
+              commitDragPlacement(source, placement);
             }
+            clearActiveDragState();
           }}
         >
           <div
@@ -638,6 +788,7 @@ export function BoardView() {
               hasError={componentIssueIds.has(component.id)}
               highlightedTerminals={selectedWireEndpoints}
               onSelect={() => selectItem({ kind: "component", id: component.id })}
+              onPointerDragStart={(event) => startComponentPointerDrag(component.id, event)}
               onTerminalClick={(terminalId) =>
                 clickTerminal({ kind: "component_terminal", componentId: component.id, terminalId })
               }
