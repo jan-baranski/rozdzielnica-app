@@ -44,12 +44,13 @@ function rcbo(id: string): BoardComponent {
   return { ...rcd(id), type: "rcbo", catalogItemId: "rcbo-1pn", name: id };
 }
 
-function mcb(id: string, startModule = 3): BoardComponent {
+function mcb(id: string, startModule = 3, current = 16, curve = "B"): BoardComponent {
   return {
     ...load,
     id,
     name: id,
     layout: { placementMode: "din_module", row: 0, startModule },
+    electrical: { ratedCurrentA: current, curve, requiresInput: true },
     terminals: [
       { id: "l1-in", label: "L in", role: "power_in", pole: "L1", direction: "in" },
       { id: "l1-out", label: "L out", role: "power_out", pole: "L1", direction: "out" }
@@ -84,6 +85,31 @@ function nBus(id: string): BoardComponent {
       { id: "n2", label: "N2", role: "neutral_bus", pole: "N", direction: "bidirectional" },
       { id: "n3", label: "N3", role: "neutral_bus", pole: "N", direction: "bidirectional" }
     ]
+  };
+}
+
+function terminalBlock(id: string): BoardComponent {
+  return {
+    id,
+    catalogItemId: "terminal-block",
+    type: "blank",
+    name: id,
+    moduleWidth: 1,
+    placementMode: "din_module",
+    layout: { placementMode: "din_module", row: 0, startModule: 5 },
+    electrical: {},
+    terminals: [
+      { id: "l1", label: "L1", role: "power_in", pole: "L1", direction: "bidirectional" },
+      { id: "l2", label: "L2", role: "power_out", pole: "L1", direction: "bidirectional" },
+      { id: "l3", label: "L3", role: "power_out", pole: "L1", direction: "bidirectional" }
+    ]
+  };
+}
+
+function withCrossSection(connection: ReturnType<typeof wire>, crossSectionMm2: number) {
+  return {
+    ...connection,
+    cable: { ...connection.cable, crossSectionMm2 }
   };
 }
 
@@ -162,22 +188,122 @@ describe("validation policies", () => {
   });
 
   it("errors when a B16 MCB is wired with less than 2.5 mm2 cable", () => {
-    const b16 = {
-      ...load,
-      electrical: { ratedCurrentA: 16, curve: "B", requiresInput: true }
-    };
     const issues = cableGaugePolicy({
       board: testBoard,
-      components: [source, b16],
+      components: [mcb("b16"), externalLoad("load-a")],
       wires: [
-        {
-          ...wire(componentEndpoint("source", "l-out"), componentEndpoint("load", "l-in")),
-          cable: { crossSectionMm2: 1.5, type: "H07V-K", color: "brown" }
-        }
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("load-a", "l-in")), 1.5)
       ]
     });
 
     expect(issues[0].code).toBe("CABLE_UNDERSIZED_B16");
+  });
+
+  it("accepts a B16 circuit wired with 2.5 mm2 all the way to a load", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b16"), externalLoad("load-a")],
+      wires: [withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("load-a", "l-in")), 2.5)]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects an undersized downstream segment behind a B16 breaker", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b16"), terminalBlock("joint-a"), externalLoad("load-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("joint-a", "l1"), "b16-joint"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("load-a", "l-in"), "joint-load"), 1.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].code).toBe("CABLE_UNDERSIZED_B16");
+    expect(issues[0].relatedWires).toEqual(["joint-load"]);
+  });
+
+  it("accepts a B10 circuit wired with 1.5 mm2", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b10", 3, 10, "B"), externalLoad("load-a")],
+      wires: [withCrossSection(wire(componentEndpoint("b10", "l1-out"), componentEndpoint("load-a", "l-in")), 1.5)]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects a C20 circuit that drops from 4 mm2 to 2.5 mm2 after a distribution block", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("c20", 3, 20, "C"), terminalBlock("block-a"), externalLoad("load-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("c20", "l1-out"), componentEndpoint("block-a", "l1"), "c20-block"), 4),
+        withCrossSection(wire(componentEndpoint("block-a", "l2"), componentEndpoint("load-a", "l-in"), "block-load"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toContain("C20");
+    expect(issues[0].relatedWires).toEqual(["block-load"]);
+  });
+
+  it("accepts a B16 route through an RCD and terminal block when every segment is 2.5 mm2", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b16"), rcd("rcd-a"), terminalBlock("joint-a"), externalLoad("load-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("rcd-a", "l1-in"), "b16-rcd"), 2.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("joint-a", "l1"), "rcd-joint"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("load-a", "l-in"), "joint-load"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("detects an undersized B16 segment after an RCD and terminal block", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b16"), rcd("rcd-a"), terminalBlock("joint-a"), externalLoad("load-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("rcd-a", "l1-in"), "b16-rcd"), 2.5),
+        withCrossSection(wire(componentEndpoint("rcd-a", "l1-out"), componentEndpoint("joint-a", "l1"), "rcd-joint"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("load-a", "l-in"), "joint-load"), 1.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["joint-load"]);
+  });
+
+  it("does not loop or duplicate issues when the downstream graph has a cycle", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b16"), terminalBlock("joint-a"), terminalBlock("joint-b"), externalLoad("load-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("joint-a", "l1"), "b16-joint"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("joint-b", "l1"), "undersized-loop"), 1.5),
+        withCrossSection(wire(componentEndpoint("joint-b", "l2"), componentEndpoint("joint-a", "l3"), "loop-return"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-b", "l3"), componentEndpoint("load-a", "l-in"), "joint-load"), 2.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].relatedWires).toEqual(["undersized-loop"]);
+  });
+
+  it("does not report cable gauge errors for an incomplete circuit without a load", () => {
+    const issues = cableGaugePolicy({
+      board: testBoard,
+      components: [mcb("b16"), terminalBlock("joint-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("joint-a", "l1"), "unfinished"), 1.5)
+      ]
+    });
+
+    expect(issues).toHaveLength(0);
   });
 
   it("errors when an outlet has phase connected but required neutral and PE are missing", () => {

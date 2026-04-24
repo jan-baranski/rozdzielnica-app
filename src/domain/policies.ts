@@ -11,7 +11,7 @@ import {
   findUnconnectedTerminals,
   validateTerminalCompatibility
 } from "./connectivityEngine";
-import type { BoardComponent, Pole, ProjectData, ValidationIssue, WireEndpoint } from "./types";
+import type { BoardComponent, Pole, ProjectData, ValidationIssue, WireConnection, WireEndpoint } from "./types";
 
 export type ValidationPolicy = (project: ProjectData) => ValidationIssue[];
 
@@ -49,7 +49,6 @@ export const peConnectionPolicy: ValidationPolicy = ({ board, components, wires 
               from.ownerKind === "component" ? from.ownerId : "",
               to.ownerKind === "component" ? to.ownerId : ""
             ].filter(Boolean),
-            relatedWires: [wire.id],
             suggestion: "Przenieś to połączenie na zacisk PE."
           }
         ]
@@ -76,7 +75,6 @@ export const neutralConnectionPolicy: ValidationPolicy = ({ board, components, w
               from.ownerKind === "component" ? from.ownerId : "",
               to.ownerKind === "component" ? to.ownerId : ""
             ].filter(Boolean),
-            relatedWires: [wire.id],
             suggestion: "Sprawdź, czy przewód neutralny trafia wyłącznie na zaciski N."
           }
         ]
@@ -369,51 +367,205 @@ function minimumCrossSectionForBreaker(current: number): number {
   if (current <= 10) {
     return 1.5;
   }
-  if (current <= 20) {
+  if (current <= 16) {
     return 2.5;
   }
-  if (current <= 25) {
+  if (current <= 20) {
     return 4;
   }
   return 6;
 }
 
-export const cableGaugePolicy: ValidationPolicy = ({ board, components, wires }) =>
-  wires.flatMap((wire) => {
-    const from = findTerminal(board, components, wire.from);
-    const to = findTerminal(board, components, wire.to);
-    if (!from || !to) {
-      return [];
-    }
-
-    const relatedComponentIds = [from, to]
-      .filter((endpoint) => endpoint.ownerKind === "component")
-      .map((endpoint) => endpoint.ownerId);
-    const protectiveDevice = relatedComponentIds
-      .map((componentId) => components.find((candidate) => candidate.id === componentId))
-      .find((component) => component?.type === "mcb" && component.electrical.ratedCurrentA);
-    const current = protectiveDevice?.electrical.ratedCurrentA;
-    if (!protectiveDevice || !current) {
-      return [];
-    }
-
-    const minimumCrossSection = minimumCrossSectionForBreaker(current);
-    return wire.cable.crossSectionMm2 < minimumCrossSection
-      ? [
-          {
-            severity: "error" as const,
-            code:
-              protectiveDevice.electrical.curve === "B" && current === 16
-                ? "CABLE_UNDERSIZED_B16"
-                : "CABLE_UNDERSIZED",
+/*
             message: `Obwód ${protectiveDevice.electrical.curve ?? ""}${current} jest podłączony przewodem o przekroju mniejszym niż ${minimumCrossSection} mm².`,
-            relatedComponents: relatedComponentIds,
             relatedWires: [wire.id],
             suggestion: `Zwiększ przekrój przewodu do co najmniej ${minimumCrossSection} mm² albo zmień zabezpieczenie.`
           }
         ]
       : [];
   });
+
+void legacyCableGaugePolicy;
+*/
+
+type CableGaugeEdge = {
+  to: string;
+  wire?: WireConnection;
+};
+
+function breakerLabel(component: BoardComponent): string {
+  const current = component.electrical.ratedCurrentA;
+  return `${component.electrical.curve ?? ""}${current ?? ""}`.trim();
+}
+
+function addCableGaugeEdge(graph: Map<string, CableGaugeEdge[]>, a: string, b: string, wire?: WireConnection) {
+  graph.set(a, graph.get(a) ?? []);
+  graph.set(b, graph.get(b) ?? []);
+  graph.get(a)?.push({ to: b, wire });
+  graph.get(b)?.push({ to: a, wire });
+}
+
+function isProtectiveBreaker(component: BoardComponent): boolean {
+  return (component.type === "mcb" || component.type === "rcbo") && Boolean(component.electrical.ratedCurrentA);
+}
+
+function buildCableGaugeGraph(project: ProjectData, protectiveDeviceId: string) {
+  const graph = new Map<string, CableGaugeEdge[]>();
+
+  project.wires.forEach((wire) => {
+    addCableGaugeEdge(graph, endpointKey(wire.from), endpointKey(wire.to), wire);
+  });
+
+  project.components.forEach((component) => {
+    component.terminals.forEach((terminal) => {
+      const key = endpointKey(terminalEndpoint(component.id, terminal.id));
+      graph.set(key, graph.get(key) ?? []);
+    });
+
+    if (component.electrical.externalLoad) {
+      return;
+    }
+
+    if (isProtectiveBreaker(component) && component.id !== protectiveDeviceId) {
+      return;
+    }
+
+    if (component.type === "neutral_bus" || component.type === "pe_bus") {
+      component.terminals.forEach((left, index) => {
+        component.terminals.slice(index + 1).forEach((right) => {
+          if (left.pole === right.pole) {
+            addCableGaugeEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, left.id)),
+              endpointKey(terminalEndpoint(component.id, right.id))
+            );
+          }
+        });
+      });
+      return;
+    }
+
+    component.terminals.forEach((left, index) => {
+      component.terminals.slice(index + 1).forEach((right) => {
+        if (left.pole === right.pole) {
+          addCableGaugeEdge(
+            graph,
+            endpointKey(terminalEndpoint(component.id, left.id)),
+            endpointKey(terminalEndpoint(component.id, right.id))
+          );
+        }
+      });
+    });
+  });
+
+  return graph;
+}
+
+function hasReachableExternalLoad(
+  starts: string[],
+  graph: Map<string, CableGaugeEdge[]>,
+  meta: Map<string, EndpointMeta>
+) {
+  const queue = [...starts];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const key = queue.shift();
+    if (!key || visited.has(key)) {
+      continue;
+    }
+
+    visited.add(key);
+    if (meta.get(key)?.component?.electrical.externalLoad) {
+      return true;
+    }
+
+    graph.get(key)?.forEach((edge) => {
+      if (!visited.has(edge.to)) {
+        queue.push(edge.to);
+      }
+    });
+  }
+
+  return false;
+}
+
+export const cableGaugePolicy: ValidationPolicy = (project) => {
+  const issues: ValidationIssue[] = [];
+  const seen = new Set<string>();
+  const meta = endpointMeta(project);
+
+  project.components.filter(isProtectiveBreaker).forEach((protectiveDevice) => {
+    const current = protectiveDevice.electrical.ratedCurrentA;
+    if (!current) {
+      return;
+    }
+
+    const minimumCrossSection = minimumCrossSectionForBreaker(current);
+    const label = breakerLabel(protectiveDevice);
+    const graph = buildCableGaugeGraph(project, protectiveDevice.id);
+    const starts = protectiveDevice.terminals
+      .filter(
+        (terminal) =>
+          terminal.direction === "out" &&
+          (terminal.role === "power_out" || (protectiveDevice.type === "rcbo" && terminal.role === "neutral_out"))
+      )
+      .map((terminal) => endpointKey(terminalEndpoint(protectiveDevice.id, terminal.id)));
+    if (!hasReachableExternalLoad(starts, graph, meta)) {
+      return;
+    }
+
+    const queue = starts.map((key) => ({ key, depth: 0 }));
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const currentNode = queue.shift();
+      if (!currentNode || visited.has(currentNode.key)) {
+        continue;
+      }
+
+      visited.add(currentNode.key);
+      graph.get(currentNode.key)?.forEach((edge) => {
+        const edgeMeta = meta.get(edge.to);
+        const edgeComponent = edgeMeta?.component;
+        const crossesIntoOtherBreaker =
+          edgeComponent && isProtectiveBreaker(edgeComponent) && edgeComponent.id !== protectiveDevice.id;
+
+        if (edge.wire && edge.wire.cable.crossSectionMm2 < minimumCrossSection) {
+          const issueKey = `${protectiveDevice.id}:${edge.wire.id}`;
+          if (!seen.has(issueKey)) {
+            seen.add(issueKey);
+            const from = findTerminal(project.board, project.components, edge.wire.from);
+            const to = findTerminal(project.board, project.components, edge.wire.to);
+            const relatedComponents = [from, to]
+              .filter((endpoint) => endpoint?.ownerKind === "component")
+              .map((endpoint) => endpoint?.ownerId ?? "")
+              .filter(Boolean);
+            const routeHint = starts.includes(currentNode.key) || starts.includes(edge.to) ? "" : " na dalszej trasie";
+
+            issues.push({
+              severity: "error",
+              code:
+                protectiveDevice.electrical.curve === "B" && current === 16
+                  ? "CABLE_UNDERSIZED_B16"
+                  : "CABLE_UNDERSIZED",
+              message: `Obwód zabezpieczony ${label} zawiera przewód ${edge.wire.cable.crossSectionMm2} mm²${routeHint}. Minimalny przekrój dla tej walidacji to ${minimumCrossSection} mm².`,
+              relatedComponents: [protectiveDevice.id, ...relatedComponents],
+              relatedWires: [edge.wire.id],
+              suggestion: `Zwiększ przekrój przewodu do co najmniej ${minimumCrossSection} mm² albo zmień zabezpieczenie.`
+            });
+          }
+        }
+
+        if (!visited.has(edge.to) && !crossesIntoOtherBreaker) {
+          queue.push({ key: edge.to, depth: currentNode.depth + 1 });
+        }
+      });
+    }
+  });
+
+  return issues;
+};
 
 function demandFactor(circuitCount: number): number {
   if (circuitCount >= 10) {

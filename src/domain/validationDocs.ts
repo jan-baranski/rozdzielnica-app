@@ -11,16 +11,16 @@ export interface ValidationDoc {
 export const validationDocs: ValidationDoc[] = [
   {
     id: "cable-sizing",
-    title: "Dobór przewodów do zabezpieczeń",
+    title: "Walidacja przekroju przewodu",
     issueCodes: ["CABLE_UNDERSIZED", "CABLE_UNDERSIZED_B16"],
     description:
-      "Aplikacja sprawdza, czy przekrój przewodu jest dopasowany do zabezpieczenia nadprądowego. Zbyt mały przewód może się przegrzewać zanim zabezpieczenie zadziała.",
-    examples: ["Przewód 2.5 mm² + B16 -> OK", "Przewód 1.5 mm² + B20 -> Błąd"],
+      "Sprawdza nie tylko przewód bezpośrednio przy zabezpieczeniu, ale całą trasę obwodu za MCB/RCBO. Wykrywa sytuacje, gdy dalszy fragment instalacji ma zbyt mały przekrój względem zabezpieczenia nadprądowego.",
+    examples: ["B16 + cała trasa 2.5 mm² -> OK", "B16 + dalszy fragment 1.5 mm² -> Błąd"],
     rulesSummary: [
       "B10 lub C10 -> minimum 1.5 mm²",
       "B16 lub C16 -> minimum 2.5 mm² w tej aplikacji",
-      "B20 lub C20 -> minimum 2.5 mm²",
-      "B25 lub C25 -> minimum 4 mm²"
+      "B20 lub C20 -> minimum 4 mm²",
+      "B25 lub C25 -> minimum 6 mm²"
     ],
     limitations: [
       "To są uproszczone reguły.",
