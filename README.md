@@ -1,56 +1,47 @@
-# Projektant Rozdzielnicy DIN (DIN Board Designer)
+# DIN Board Designer (hobbystyczny)
 
-Profesjonalne narzędzie MVP do projektowania domowych rozdzielnic elektrycznych na szynę DIN. Aplikacja łączy w sobie realistyczny edytor wizualny, silnik walidacji reguł technicznych oraz możliwość generowania schematów logicznych.
+Prosta aplikacja do wizualnego szkicowania rozdzielnicy DIN.  
+Powstała na własne potrzeby — żeby łatwiej ogarnąć układ aparatów i podstawowe połączenia.
 
-## Główne Funkcje (Features)
+👉 Dostępna online: https://rozdzielnica.app
 
-- **Interaktywna Szyna DIN**: Przeciągaj i upuszczaj (drag-and-drop) aparaty bezpośrednio na rzędy rozdzielnicy. System automatycznie wykrywa zajęte moduły i sugeruje wolne miejsca.
-- **Obszerna Biblioteka Aparatów**: Dostęp do katalogu standardowych komponentów (nadmiarowoprądowe MCB, różnicowoprądowe RCD, ochronniki SPD, rozłączniki główne, gniazda i inne).
-- **Zaawansowany System Okablowania**:
-  - Tworzenie połączeń między zaciskami aparatów.
-  - **Przenoszenie Przewodów**: Możliwość odłączenia jednego końca przewodu i przepięcia go do innego zacisku bez usuwania całego połączenia.
-  - Automatyczne dobieranie kolorów izolacji na podstawie potencjału zacisku (L1, L2, L3, N, PE).
-- **Inteligentna Walidacja (Live)**: Silnik reguł w czasie rzeczywistym sprawdza błędy takie jak:
-  - Przekroczenie pojemności rzędów.
-  - Niekompatybilne połączenia (np. faza do PE).
-  - Brak zabezpieczenia różnicowoprądowego dla obwodów odbiorczych.
-  - Brak rozłącznika głównego.
-- **Eksport i Import**: Możliwość zapisu projektu do formatu JSON oraz szybkiego przywracania stanu początkowego (przycisk Demo).
+## ✨ Funkcje
 
-## Jak Korzystać (How to Use)
+- wizualny edytor rozdzielnicy (rzędy DIN i moduły)
+- biblioteka podstawowych aparatów:
+  - MCB (B10, B16, B20, B25, C16, C20)
+  - RCD / RCBO
+  - SPD
+  - rozłącznik główny
+  - listwy N / PE
+  - zaślepki i proste odbiorniki
+- przeciąganie elementów na szynę DIN
+- zmiana rozmiaru rozdzielnicy (liczba rzędów i modułów)
+- tworzenie prostych połączeń między zaciskami
+- podstawowe walidacje (np. dobór zabezpieczeń, przekroje przewodów — w ograniczonym zakresie)
 
-### 1. Budowa Rozdzielnicy
-- Wybierz aparat z **Biblioteki aparatów** po lewej stronie.
-- Przeciągnij go na wybrany rząd w centralnej części ekranu.
-- Możesz dowolnie przesuwać ułożone już aparaty lub zmieniać rozmiar rozdzielnicy w **Panelu Właściwości** po prawej stronie.
+## ⚠️ Ważne
 
-### 2. Okablowanie
-- Kliknij na wybrany zacisk aparatu (mały kolorowy okrąg). Zostanie on podświetlony jako punkt startowy.
-- Kliknij na drugi zacisk, aby utworzyć połączenie.
-- **Aby zmienić połączenie**: Wybierz istniejący przewód, kliknij jeden z podświetlonych końców, a następnie kliknij nowy zacisk docelowy.
+- To **nie jest narzędzie profesjonalne ani projektowe**
+- Aplikacja **nie była formalnie testowana**
+- Może zawierać **błędy oraz halucynacje AI**
+- Nie uwzględnia wszystkich norm, przepisów i przypadków
 
-### 3. Konfiguracja i Detale
-- Kliknij na aparat lub przewód, aby zobaczyć i edytować jego szczegóły w **Panelu Właściwości**.
-- Możesz tam zmienić nazwę aparatu (np. "Oświetlenie Salon") lub przekrój przewodu.
+👉 Traktuj ją wyłącznie jako narzędzie poglądowe / edukacyjne
 
-### 4. Sprawdzanie Błędów
-- Panel na dole ekranu wyświetla listę wykrytych problemów.
-- Kliknięcie w błąd podświetli komponenty, których dotyczy problem.
+**Nie należy na jej podstawie wykonywać rzeczywistych instalacji bez weryfikacji przez osobę z uprawnieniami.**
 
-## Technologia (Stack)
+## 🚧 Status
 
-- **Frontend**: Next.js (App Router), React, TypeScript.
-- **Stan**: Zustand (zarządzanie stanem edytora).
-- **Stylizacja**: Tailwind CSS.
-- **Logika**: Zod (walidacja schematów), Vitest (testy domeny).
+Projekt w trakcie rozwoju — robiony po godzinach, pod własne potrzeby.
 
-## Uruchomienie Lokalne
+## 💡 Cel
 
-```bash
-npm install
-npm run dev
-```
-Aplikacja będzie dostępna pod adresem `http://localhost:3000`.
+Pomóc hobbystom:
+- wizualnie poukładać rozdzielnicę
+- zrozumieć podstawowe zależności
+- wychwycić oczywiste błędy na wczesnym etapie
 
----
-**Uwaga**: Narzędzie ma charakter poglądowy i edukacyjny. Projekty i walidacje nie zastępują wiedzy i uprawnień profesjonalnego elektryka.
+## 🧪 Disclaimer (krótko)
+
+Używasz na własną odpowiedzialność 🙂
