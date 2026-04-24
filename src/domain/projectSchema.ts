@@ -32,7 +32,8 @@ export const electricalSchema = z.object({
   busType: z.enum(["N", "PE"]).optional(),
   externalLoad: z.boolean().optional(),
   requiredPoles: z.array(z.enum(["L1", "L2", "L3", "N", "PE"])).optional(),
-  currentA: z.number().positive().optional()
+  ratingA: z.number().positive().optional(),
+  currentA: z.number().nonnegative().optional()
 });
 
 export const catalogItemSchema = z.object({

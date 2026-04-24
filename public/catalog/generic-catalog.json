@@ -284,7 +284,7 @@
       { "id": "l-in", "label": "L", "role": "power_in", "pole": "L1", "direction": "in" },
       { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" }
     ],
-    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N"], "currentA": 1 },
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N"], "currentA": 0.5 },
     "visual": { "src": "/assets/components/bulb.png", "widthPx": 76, "heightPx": 76 }
   },
   {
@@ -301,7 +301,7 @@
       { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" },
       { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
     ],
-    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"], "currentA": 16 },
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"], "ratingA": 16, "currentA": 0 },
     "visual": { "src": "/assets/components/outlet.png", "widthPx": 86, "heightPx": 86 }
   },
   {
@@ -318,7 +318,7 @@
       { "id": "n-in", "label": "N", "role": "neutral_in", "pole": "N", "direction": "in" },
       { "id": "pe", "label": "PE", "role": "earth", "pole": "PE", "direction": "bidirectional" }
     ],
-    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"], "currentA": 16 },
+    "electricalTemplate": { "requiresInput": true, "externalLoad": true, "requiredPoles": ["L1", "N", "PE"], "currentA": 1 },
     "visual": { "src": "/assets/components/outlet.png", "widthPx": 86, "heightPx": 86 }
   }
 ]

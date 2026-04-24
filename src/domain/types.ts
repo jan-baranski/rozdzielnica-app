@@ -71,6 +71,7 @@ export interface ComponentElectricalProperties {
   busType?: "N" | "PE";
   externalLoad?: boolean;
   requiredPoles?: Pole[];
+  ratingA?: number;
   currentA?: number;
 }
 

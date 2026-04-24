@@ -59,7 +59,7 @@ function mcb(id: string, startModule = 3, current = 16, curve = "B"): BoardCompo
   };
 }
 
-function externalLoad(id: string, currentA = 16): BoardComponent {
+function externalLoad(id: string, currentA = 0): BoardComponent {
   return {
     ...load,
     id,
@@ -72,6 +72,25 @@ function externalLoad(id: string, currentA = 16): BoardComponent {
       { id: "l-in", label: "L", role: "power_in", pole: "L1", direction: "in" },
       { id: "n-in", label: "N", role: "neutral_in", pole: "N", direction: "in" },
       { id: "pe", label: "PE", role: "earth", pole: "PE", direction: "bidirectional" }
+    ]
+  };
+}
+
+function genericOutlet(id: string): BoardComponent {
+  return {
+    ...externalLoad(id, 0),
+    electrical: { externalLoad: true, requiredPoles: ["L1", "N", "PE"], requiresInput: true, ratingA: 16, currentA: 0 }
+  };
+}
+
+function bulbLoad(id: string): BoardComponent {
+  return {
+    ...externalLoad(id, 0.5),
+    type: "bulb",
+    electrical: { externalLoad: true, requiredPoles: ["L1", "N"], requiresInput: true, currentA: 0.5 },
+    terminals: [
+      { id: "l-in", label: "L", role: "power_in", pole: "L1", direction: "in" },
+      { id: "n-in", label: "N", role: "neutral_in", pole: "N", direction: "in" }
     ]
   };
 }
@@ -377,6 +396,54 @@ describe("validation policies", () => {
         }
       ],
       wires: [wire(componentEndpoint("b16", "l1-out"), componentEndpoint("load-a", "l-in"))]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("accepts a B16 circuit with 2.5 mm2 wire and a generic outlet rated 16 A with 0 A load", () => {
+    const project = {
+      board: testBoard,
+      components: [mcb("b16"), genericOutlet("outlet-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("outlet-a", "l-in")), 2.5)
+      ]
+    };
+
+    expect(circuitLoadPolicy(project)).toHaveLength(0);
+    expect(cableGaugePolicy(project)).toHaveLength(0);
+  });
+
+  it("accepts a B16 circuit with a generic outlet and a 0.5 A bulb", () => {
+    const project = {
+      board: testBoard,
+      components: [mcb("b16"), terminalBlock("joint-a"), genericOutlet("outlet-a"), bulbLoad("bulb-a")],
+      wires: [
+        withCrossSection(wire(componentEndpoint("b16", "l1-out"), componentEndpoint("joint-a", "l1"), "b16-joint"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l2"), componentEndpoint("outlet-a", "l-in"), "joint-outlet"), 2.5),
+        withCrossSection(wire(componentEndpoint("joint-a", "l3"), componentEndpoint("bulb-a", "l-in"), "joint-bulb"), 2.5)
+      ]
+    };
+
+    expect(circuitLoadPolicy(project)).toHaveLength(0);
+    expect(cableGaugePolicy(project)).toHaveLength(0);
+  });
+
+  it("does not treat a generic outlet 16 A rating as 16 A load", () => {
+    const issues = circuitLoadPolicy({
+      board: testBoard,
+      components: [mcb("b10", 3, 10, "B"), genericOutlet("outlet-a")],
+      wires: [wire(componentEndpoint("b10", "l1-out"), componentEndpoint("outlet-a", "l-in"))]
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("does not give a bulb 16 A default load", () => {
+    const issues = circuitLoadPolicy({
+      board: testBoard,
+      components: [mcb("b10", 3, 10, "B"), bulbLoad("bulb-a")],
+      wires: [wire(componentEndpoint("b10", "l1-out"), componentEndpoint("bulb-a", "l-in"))]
     });
 
     expect(issues).toHaveLength(0);

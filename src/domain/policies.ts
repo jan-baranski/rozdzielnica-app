@@ -400,7 +400,7 @@ function isProtectiveBreaker(component: BoardComponent): boolean {
 }
 
 function loadCurrentA(component: BoardComponent): number {
-  return component.electrical.currentA ?? 16;
+  return component.electrical.currentA ?? 0;
 }
 
 function maximumCurrentForCrossSection(crossSectionMm2: number): number {
