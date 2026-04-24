@@ -11,7 +11,7 @@ import {
   findUnconnectedTerminals,
   validateTerminalCompatibility
 } from "./connectivityEngine";
-import type { BoardComponent, ProjectData, ValidationIssue } from "./types";
+import type { BoardComponent, Pole, ProjectData, ValidationIssue, WireEndpoint } from "./types";
 
 export type ValidationPolicy = (project: ProjectData) => ValidationIssue[];
 
@@ -82,6 +82,288 @@ export const neutralConnectionPolicy: ValidationPolicy = ({ board, components, w
         ]
       : [];
   });
+
+type EndpointMeta = {
+  endpoint: WireEndpoint;
+  component?: BoardComponent;
+  pole: Pole;
+  role: string;
+  direction: string;
+};
+
+function addGraphEdge(graph: Map<string, Set<string>>, a: string, b: string) {
+  graph.set(a, graph.get(a) ?? new Set());
+  graph.set(b, graph.get(b) ?? new Set());
+  graph.get(a)?.add(b);
+  graph.get(b)?.add(a);
+}
+
+function terminalEndpoint(componentId: string, terminalId: string): WireEndpoint {
+  return { kind: "component_terminal", componentId, terminalId };
+}
+
+function endpointMeta(project: ProjectData): Map<string, EndpointMeta> {
+  const meta = new Map<string, EndpointMeta>();
+
+  project.board.supplyTerminals.forEach((terminal) => {
+    const endpoint: WireEndpoint = { kind: "board_terminal", boardTerminalId: terminal.id };
+    meta.set(endpointKey(endpoint), {
+      endpoint,
+      pole: terminal.pole,
+      role: terminal.role,
+      direction: terminal.direction
+    });
+  });
+
+  project.components.forEach((component) => {
+    component.terminals.forEach((terminal) => {
+      const endpoint = terminalEndpoint(component.id, terminal.id);
+      meta.set(endpointKey(endpoint), {
+        endpoint,
+        component,
+        pole: terminal.pole,
+        role: terminal.role,
+        direction: terminal.direction
+      });
+    });
+  });
+
+  return meta;
+}
+
+function buildElectricalGraph(project: ProjectData, options: { omitRcdInternals?: boolean } = {}) {
+  const graph = new Map<string, Set<string>>();
+
+  project.wires.forEach((wire) => {
+    addGraphEdge(graph, endpointKey(wire.from), endpointKey(wire.to));
+  });
+
+  project.components.forEach((component) => {
+    component.terminals.forEach((terminal) => {
+      graph.set(endpointKey(terminalEndpoint(component.id, terminal.id)), graph.get(endpointKey(terminalEndpoint(component.id, terminal.id))) ?? new Set());
+    });
+
+    if (component.type === "neutral_bus" || component.type === "pe_bus") {
+      component.terminals.forEach((left, index) => {
+        component.terminals.slice(index + 1).forEach((right) => {
+          if (left.pole === right.pole) {
+            addGraphEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, left.id)),
+              endpointKey(terminalEndpoint(component.id, right.id))
+            );
+          }
+        });
+      });
+      return;
+    }
+
+    if (options.omitRcdInternals && (component.type === "rcd" || component.type === "rcbo")) {
+      return;
+    }
+
+    component.terminals
+      .filter((terminal) => terminal.direction === "in")
+      .forEach((input) => {
+        component.terminals
+          .filter((terminal) => terminal.direction === "out" && terminal.pole === input.pole)
+          .forEach((output) => {
+            addGraphEdge(
+              graph,
+              endpointKey(terminalEndpoint(component.id, input.id)),
+              endpointKey(terminalEndpoint(component.id, output.id))
+            );
+          });
+      });
+  });
+
+  project.board.supplyTerminals.forEach((terminal) => {
+    const key = endpointKey({ kind: "board_terminal", boardTerminalId: terminal.id });
+    graph.set(key, graph.get(key) ?? new Set());
+  });
+
+  return graph;
+}
+
+function reachableKeys(
+  startKey: string,
+  graph: Map<string, Set<string>>,
+  meta: Map<string, EndpointMeta>,
+  allowedPoles: Set<Pole>
+) {
+  const visited = new Set<string>();
+  const queue = [startKey];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) {
+      continue;
+    }
+
+    const currentMeta = meta.get(current);
+    if (!currentMeta || !allowedPoles.has(currentMeta.pole)) {
+      continue;
+    }
+
+    visited.add(current);
+    graph.get(current)?.forEach((next) => {
+      if (!visited.has(next)) {
+        queue.push(next);
+      }
+    });
+  }
+
+  return visited;
+}
+
+function componentTerminalKeys(component: BoardComponent, role: string, pole?: Pole) {
+  return component.terminals
+    .filter((terminal) => terminal.role === role && (!pole || terminal.pole === pole))
+    .map((terminal) => endpointKey(terminalEndpoint(component.id, terminal.id)));
+}
+
+function connectedRcdOutputs(
+  startKey: string,
+  project: ProjectData,
+  graphWithoutRcdInternals: Map<string, Set<string>>,
+  meta: Map<string, EndpointMeta>,
+  poleGroup: "live" | "neutral"
+) {
+  const allowedPoles =
+    poleGroup === "neutral"
+      ? new Set<Pole>(["N"])
+      : new Set<Pole>(["L1", "L2", "L3"]);
+  const reachable = reachableKeys(startKey, graphWithoutRcdInternals, meta, allowedPoles);
+
+  return new Set(
+    project.components
+      .filter((component) => component.type === "rcd" || component.type === "rcbo")
+      .filter((component) => {
+        const outputKeys =
+          poleGroup === "neutral"
+            ? componentTerminalKeys(component, "neutral_out", "N")
+            : component.terminals
+                .filter((terminal) => terminal.role === "power_out" && terminal.pole.startsWith("L"))
+                .map((terminal) => endpointKey(terminalEndpoint(component.id, terminal.id)));
+
+        return outputKeys.some((key) => reachable.has(key));
+      })
+      .map((component) => component.id)
+  );
+}
+
+function hasReachableRole(
+  startKey: string,
+  graph: Map<string, Set<string>>,
+  meta: Map<string, EndpointMeta>,
+  role: string
+) {
+  const reachable = reachableKeys(startKey, graph, meta, new Set<Pole>(["N"]));
+  return [...reachable].some((key) => {
+    const item = meta.get(key);
+    return item?.role === role || (role === "neutral_source" && item?.endpoint.kind === "board_terminal");
+  });
+}
+
+export const neutralRcdCircuitPolicy: ValidationPolicy = (project) => {
+  const issues: ValidationIssue[] = [];
+  const meta = endpointMeta(project);
+  const graphWithoutRcdInternals = buildElectricalGraph(project, { omitRcdInternals: true });
+
+  project.components
+    .filter((component) => component.type === "neutral_bus")
+    .forEach((bus) => {
+      const rcdIds = new Set<string>();
+      bus.terminals.forEach((terminal) => {
+        const key = endpointKey(terminalEndpoint(bus.id, terminal.id));
+        connectedRcdOutputs(key, project, graphWithoutRcdInternals, meta, "neutral").forEach((id) => rcdIds.add(id));
+      });
+
+      if (rcdIds.size > 1) {
+        issues.push({
+          severity: "error",
+          code: "N_BUS_SHARED_BY_RCDS",
+          message: "Dwa różne RCD korzystają z tej samej listwy N. Każdy RCD powinien mieć oddzielną listwę N.",
+          relatedComponents: [bus.id, ...rcdIds],
+          suggestion: "Rozdziel listwy N tak, aby wyjście N każdego RCD trafiało na osobną listwę."
+        });
+      }
+    });
+
+  project.components
+    .filter((component) => component.electrical.externalLoad)
+    .forEach((loadComponent) => {
+      const liveTerminals = loadComponent.terminals.filter((terminal) => terminal.pole.startsWith("L"));
+      const neutralTerminal = loadComponent.terminals.find((terminal) => terminal.pole === "N");
+
+      liveTerminals.forEach((liveTerminal) => {
+        const liveKey = endpointKey(terminalEndpoint(loadComponent.id, liveTerminal.id));
+        const liveReachable = reachableKeys(
+          liveKey,
+          graphWithoutRcdInternals,
+          meta,
+          new Set<Pole>(["L1", "L2", "L3"])
+        );
+        if (liveReachable.size <= 1) {
+          return;
+        }
+
+        const liveRcds = connectedRcdOutputs(liveKey, project, graphWithoutRcdInternals, meta, "live");
+        if (!neutralTerminal) {
+          return;
+        }
+
+        const neutralKey = endpointKey(terminalEndpoint(loadComponent.id, neutralTerminal.id));
+        const neutralReachable = reachableKeys(neutralKey, graphWithoutRcdInternals, meta, new Set<Pole>(["N"]));
+        if (neutralReachable.size <= 1) {
+          issues.push({
+            severity: "warning",
+            code: "LOAD_NEUTRAL_MISSING",
+            message: "Odbiornik ma podłączoną fazę, ale nie ma poprawnie przypisanego przewodu N.",
+            relatedComponents: [loadComponent.id],
+            suggestion: "Podłącz N odbiornika do listwy N właściwej dla tego samego obwodu."
+          });
+          return;
+        }
+
+        const neutralRcds = connectedRcdOutputs(neutralKey, project, graphWithoutRcdInternals, meta, "neutral");
+        if (liveRcds.size === 0) {
+          if (neutralRcds.size > 0) {
+            issues.push({
+              severity: "warning",
+              code: "LOAD_NEUTRAL_CIRCUIT_MISMATCH",
+              message: "Przewód N odbiornika nie jest przypisany do tego samego obwodu co przewód fazowy.",
+              relatedComponents: [loadComponent.id, ...neutralRcds],
+              suggestion: "Sprawdź, czy L i N odbiornika są prowadzone przez ten sam tor ochrony."
+            });
+          }
+          return;
+        }
+
+        const matchingRcds = [...liveRcds].filter((id) => neutralRcds.has(id));
+        if (matchingRcds.length > 0) {
+          return;
+        }
+
+        const neutralBeforeRcd =
+          neutralRcds.size === 0 &&
+          (hasReachableRole(neutralKey, graphWithoutRcdInternals, meta, "neutral_source") ||
+            hasReachableRole(neutralKey, graphWithoutRcdInternals, meta, "neutral_in"));
+
+        issues.push({
+          severity: "error",
+          code: neutralBeforeRcd ? "N_CONNECTED_BEFORE_RCD" : "N_RCD_MISMATCH",
+          message: neutralBeforeRcd
+            ? "Neutralny N jest podłączony przed RCD, mimo że faza obwodu jest za RCD."
+            : "Obwód ma fazę za RCD, ale przewód N nie przechodzi przez ten sam RCD.",
+          relatedComponents: [loadComponent.id, ...liveRcds, ...neutralRcds],
+          suggestion: "Poprowadź N przez ten sam RCD/RCBO albo listwę N przypisaną do tego RCD."
+        });
+      });
+    });
+
+  return issues;
+};
 
 function minimumCrossSectionForBreaker(current: number): number {
   if (current <= 10) {
@@ -390,6 +672,7 @@ export const validationPolicies: ValidationPolicy[] = [
   terminalCompatibilityPolicy,
   peConnectionPolicy,
   neutralConnectionPolicy,
+  neutralRcdCircuitPolicy,
   cableGaugePolicy,
   breakerGroupingPolicy,
   missingInputPolicy,

@@ -89,6 +89,33 @@ export const validationDocs: ValidationDoc[] = [
     limitations: ["Aplikacja nie rozpoznaje wszystkich układów sieci ani szczególnych przypadków rozdziału PEN."]
   },
   {
+    id: "neutral-rcd-circuits",
+    title: "Walidacja przewodu N",
+    issueCodes: [
+      "N_BUS_SHARED_BY_RCDS",
+      "LOAD_NEUTRAL_MISSING",
+      "LOAD_NEUTRAL_CIRCUIT_MISMATCH",
+      "N_CONNECTED_BEFORE_RCD",
+      "N_RCD_MISMATCH"
+    ],
+    description:
+      "Sprawdza, czy przewód neutralny N należy do właściwego obwodu, przechodzi przez odpowiedni RCD oraz czy różne RCD nie współdzielą jednej listwy N.",
+    examples: [
+      "Faza za RCD i N na listwie tego samego RCD -> OK",
+      "Faza za RCD A, a N za RCD B -> Błąd",
+      "Dwa RCD podłączone do jednej listwy N -> Błąd"
+    ],
+    rulesSummary: [
+      "Obwód za RCD powinien mieć N za tym samym RCD albo na listwie N przypisanej do niego.",
+      "Kilka RCD powinno mieć oddzielne listwy N po stronie wyjściowej.",
+      "Odbiornik z podłączoną fazą powinien mieć przypisany właściwy przewód N."
+    ],
+    limitations: [
+      "To analiza topologii połączeń w edytorze, nie profesjonalna weryfikacja instalacji.",
+      "Przy niekompletnych połączeniach aplikacja może pokazać ostrzeżenie albo pominąć ocenę."
+    ]
+  },
+  {
     id: "missing-input",
     title: "Brak połączenia wejściowego",
     issueCodes: ["MISSING_INPUT"],
