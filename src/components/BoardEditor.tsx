@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BoardView } from "./BoardView";
 import { ComponentLibrary } from "./ComponentLibrary";
@@ -117,6 +118,12 @@ export function BoardEditor() {
 
       <ValidationPanel />
       <div className="fixed bottom-2 right-3 z-50 flex items-center gap-2 text-[10px] font-medium text-[#667085] sm:right-4">
+        <Link
+          href="/privacy"
+          className="inline-flex h-7 items-center rounded border border-[#c8d1dc] bg-white/90 px-2 text-[#172033] shadow-sm transition hover:border-[#98a2b3] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:ring-offset-2"
+        >
+          Prywatność
+        </Link>
         <a
           href="https://github.com/jan-baranski/rozdzielnica-app"
           target="_blank"
