@@ -116,6 +116,11 @@ export const wireEndpointSchema = z.discriminatedUnion("kind", [
   })
 ]);
 
+export const wireBreakpointSchema = z.object({
+  x: z.number(),
+  y: z.number()
+});
+
 export const wireSchema = z.object({
   id: z.string(),
   from: wireEndpointSchema,
@@ -124,7 +129,8 @@ export const wireSchema = z.object({
     crossSectionMm2: z.number().positive(),
     type: z.string(),
     color: z.string()
-  })
+  }),
+  breakpoints: z.array(wireBreakpointSchema).optional()
 });
 
 export const projectSchema = z.object({

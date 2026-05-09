@@ -8,10 +8,11 @@ import {
   MODULE_HEIGHT_PX,
   MODULE_WIDTH_PX,
   ROW_GAP,
+  SUPPLY_ZONE_WIDTH_PX,
   TERMINAL_HIT_SIZE
 } from "@/domain/constants";
 import { endpointKey } from "@/domain/connectivityEngine";
-import type { Board, BoardComponent, BoardTerminal, CatalogItem, Pole, WireConnection, WireEndpoint } from "@/domain/types";
+import type { Board, BoardComponent, BoardTerminal, CatalogItem, Pole, WireBreakpoint, WireConnection, WireEndpoint } from "@/domain/types";
 import { getCatalogVisual, useBoardStore, activeDragState } from "@/store/useBoardStore";
 import { BoardComponentView } from "./BoardComponentView";
 
@@ -24,6 +25,12 @@ interface EndpointRoute {
   point: TerminalPoint;
   approachY: number;
   bounds?: { left: number; right: number; top: number; bottom: number };
+}
+
+interface RenderedWirePath {
+  d: string;
+  color: string;
+  signature: string;
 }
 
 const CATALOG_POINTER_DRAG_START = "catalog-pointer-drag-start";
@@ -74,17 +81,17 @@ function componentVisualSize(component: BoardComponent): { width: number; height
   };
 }
 
-function componentOrigin(component: BoardComponent): TerminalPoint {
+function componentOrigin(component: BoardComponent, boardOffsetX = 0): TerminalPoint {
   return component.layout.placementMode === "din_module"
     ? {
-        x: component.layout.startModule * MODULE_WIDTH_PX,
+        x: boardOffsetX + component.layout.startModule * MODULE_WIDTH_PX,
         y: component.layout.row * (MODULE_HEIGHT_PX + ROW_GAP)
       }
-    : { x: component.layout.x, y: component.layout.y };
+    : { x: boardOffsetX + component.layout.x, y: component.layout.y };
 }
 
-function componentBounds(component: BoardComponent) {
-  const origin = componentOrigin(component);
+function componentBounds(component: BoardComponent, boardOffsetX = 0) {
+  const origin = componentOrigin(component, boardOffsetX);
   const size = componentVisualSize(component);
   return {
     left: origin.x,
@@ -94,7 +101,7 @@ function componentBounds(component: BoardComponent) {
   };
 }
 
-function terminalPoint(component: BoardComponent, endpoint: WireEndpoint): TerminalPoint | null {
+function terminalPoint(component: BoardComponent, endpoint: WireEndpoint, boardOffsetX = 0): TerminalPoint | null {
   if (endpoint.kind !== "component_terminal") {
     return null;
   }
@@ -103,7 +110,7 @@ function terminalPoint(component: BoardComponent, endpoint: WireEndpoint): Termi
     return null;
   }
 
-  const origin = componentOrigin(component);
+  const origin = componentOrigin(component, boardOffsetX);
   const size = componentVisualSize(component);
 
   if (component.layout.placementMode === "free") {
@@ -149,7 +156,8 @@ function boardTerminalPoint(board: Board, endpoint: WireEndpoint): TerminalPoint
 function endpointRoute(
   board: Board,
   components: BoardComponent[],
-  endpoint: WireEndpoint
+  endpoint: WireEndpoint,
+  boardOffsetX = 0
 ): EndpointRoute | null {
   if (endpoint.kind === "board_terminal") {
     const point = boardTerminalPoint(board, endpoint);
@@ -160,13 +168,13 @@ function endpointRoute(
   if (!component) {
     return null;
   }
-  const point = terminalPoint(component, endpoint);
+  const point = terminalPoint(component, endpoint, boardOffsetX);
   const terminal = component.terminals.find((candidate) => candidate.id === endpoint.terminalId);
   if (!point || !terminal) {
     return null;
   }
 
-  const bounds = componentBounds(component);
+  const bounds = componentBounds(component, boardOffsetX);
   if (component.layout.placementMode === "din_module") {
     const approachY =
       terminal.direction === "in"
@@ -184,9 +192,12 @@ function endpointRoute(
 function chooseWireCorridor(
   from: EndpointRoute,
   to: EndpointRoute,
+  boardOffsetX: number,
   boardWidth: number,
   workspaceWidth: number
 ): number {
+  const boardRight = boardOffsetX + boardWidth;
+
   if (from.bounds && to.bounds) {
     if (from.bounds.right <= to.bounds.left) {
       return (from.bounds.right + to.bounds.left) / 2;
@@ -207,9 +218,32 @@ function chooseWireCorridor(
     }
   }
 
-  const rightSide = Math.min(workspaceWidth - 12, Math.max(from.point.x, to.point.x, boardWidth) + 24);
-  const leftSide = Math.max(12, Math.min(from.point.x, to.point.x) - 24);
+  const rightSide = Math.min(workspaceWidth - 12, Math.max(from.point.x, to.point.x, boardRight) + 24);
+  const leftSide = Math.max(12, Math.min(from.point.x, to.point.x, boardOffsetX) - 24);
   return rightSide < workspaceWidth - 6 ? rightSide : leftSide;
+}
+
+function formatPolyline(points: TerminalPoint[]): string {
+  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+}
+
+function wireStrokeWidth(crossSectionMm2: number): number {
+  if (crossSectionMm2 <= 1.5) {
+    return 2.5;
+  }
+  if (crossSectionMm2 <= 2.5) {
+    return 3.25;
+  }
+  if (crossSectionMm2 <= 4) {
+    return 4;
+  }
+  if (crossSectionMm2 <= 6) {
+    return 4.75;
+  }
+  if (crossSectionMm2 <= 10) {
+    return 5.75;
+  }
+  return 6.75;
 }
 
 function wirePath(
@@ -217,8 +251,9 @@ function wirePath(
   board: Board,
   components: BoardComponent[],
   workspaceWidth: number,
+  boardOffsetX: number,
   laneOffset = 0
-): { d: string; color: string; signature: string } | null {
+): RenderedWirePath | null {
   const fromEndpoint = wire.from;
   const toEndpoint = wire.to;
   const fromComponent =
@@ -230,8 +265,8 @@ function wirePath(
       ? components.find((component) => component.id === toEndpoint.componentId)
       : undefined;
 
-  const fromRoute = endpointRoute(board, components, fromEndpoint);
-  const toRoute = endpointRoute(board, components, toEndpoint);
+  const fromRoute = endpointRoute(board, components, fromEndpoint, boardOffsetX);
+  const toRoute = endpointRoute(board, components, toEndpoint, boardOffsetX);
   const fromTerminal =
     fromEndpoint.kind === "component_terminal"
       ? fromComponent?.terminals.find((terminal) => terminal.id === fromEndpoint.terminalId)
@@ -240,8 +275,18 @@ function wirePath(
     return null;
   }
 
+  const color = poleColor(fromTerminal?.pole);
+  if (wire.breakpoints?.length) {
+    const points = [fromRoute.point, ...wire.breakpoints.map((point) => ({ x: point.x, y: point.y })), toRoute.point];
+    return {
+      d: formatPolyline(points),
+      color,
+      signature: points.map((point) => `${Math.round(point.x / 4)}:${Math.round(point.y / 4)}`).join("|")
+    };
+  }
+
   const boardWidth = board.widthModulesPerRow * MODULE_WIDTH_PX;
-  const baseCorridorX = chooseWireCorridor(fromRoute, toRoute, boardWidth, workspaceWidth);
+  const baseCorridorX = chooseWireCorridor(fromRoute, toRoute, boardOffsetX, boardWidth, workspaceWidth);
   const corridorX = clamp(baseCorridorX + laneOffset, 8, workspaceWidth - 8);
   const fromApproachY = fromRoute.approachY + laneOffset;
   const toApproachY = toRoute.approachY + laneOffset;
@@ -263,7 +308,7 @@ function wirePath(
       `H ${toRoute.point.x}`,
       `V ${toRoute.point.y}`
     ].join(" "),
-    color: poleColor(fromTerminal?.pole),
+    color,
     signature
   };
 }
@@ -310,6 +355,7 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
     overBoard: boolean;
   } | null>(null);
   const cleanupPointerDragRef = useRef<(() => void) | null>(null);
+  const cleanupWireBreakpointDragRef = useRef<(() => void) | null>(null);
   const suppressNextComponentClickRef = useRef<string | null>(null);
   const {
     board,
@@ -326,7 +372,9 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
     addComponent,
     moveComponent,
     selectItem,
-    clickTerminal
+    clickTerminal,
+    addWireBreakpoint,
+    updateWireBreakpoint
   } = useBoardStore();
 
   const componentIssueIds = useMemo(() => {
@@ -339,11 +387,12 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
 
   const boardWidth = board.widthModulesPerRow * MODULE_WIDTH_PX;
   const boardHeight = board.rows.length * MODULE_HEIGHT_PX + (board.rows.length - 1) * ROW_GAP;
-  const workspaceWidth = boardWidth + EXTERNAL_ZONE_WIDTH_PX;
+  const boardOffsetX = SUPPLY_ZONE_WIDTH_PX;
+  const workspaceWidth = boardOffsetX + boardWidth + EXTERNAL_ZONE_WIDTH_PX;
   const wireLaneOffsets = useMemo(() => {
     const groups = new Map<string, string[]>();
     wires.forEach((wire) => {
-      const path = wirePath(wire, board, components, workspaceWidth);
+      const path = wirePath(wire, board, components, workspaceWidth, boardOffsetX);
       if (!path) {
         return;
       }
@@ -357,7 +406,7 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
       });
     });
     return offsets;
-  }, [board, components, wires, workspaceWidth]);
+  }, [board, boardOffsetX, components, wires, workspaceWidth]);
 
   const selectedWireEndpoints = useMemo(() => {
     if (selectedItem?.kind !== "wire") return new Set<string>();
@@ -368,31 +417,34 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
 
   const resolveDragPlacement = useCallback(
     (x: number, y: number, catalogItem?: CatalogItem, moving?: BoardComponent): DragPlacement | null => {
+      const localX = x - boardOffsetX;
+
       if (catalogItem) {
         if (catalogItem.placementMode === "free") {
           const size = {
             width: catalogItem.visual.widthPx ?? Math.max(120, catalogItem.moduleWidth * MODULE_WIDTH_PX),
             height: catalogItem.visual.heightPx ?? 28
           };
+          const maxLocalWidth = (catalogItem.electricalTemplate.externalLoad ? boardWidth + EXTERNAL_ZONE_WIDTH_PX : boardWidth) - size.width;
           const left = clamp(
-            x - size.width / 2,
+            localX - size.width / 2,
             0,
-            Math.max(0, (catalogItem.electricalTemplate.externalLoad ? workspaceWidth : boardWidth) - size.width)
+            Math.max(0, maxLocalWidth)
           );
           const top = clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height));
           return {
             layout: { placementMode: "free", x: left, y: top },
-            indicator: { left, top, width: size.width, height: size.height }
+            indicator: { left: boardOffsetX + left, top, width: size.width, height: size.height }
           };
         }
 
         const maxStart = Math.max(0, board.widthModulesPerRow - catalogItem.moduleWidth);
-        const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
+        const startModule = clamp(Math.round(localX / MODULE_WIDTH_PX), 0, maxStart);
         const row = clamp(Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)), 0, board.rows.length - 1);
         return {
           layout: { placementMode: "din_module", row, startModule },
           indicator: {
-            left: startModule * MODULE_WIDTH_PX,
+            left: boardOffsetX + startModule * MODULE_WIDTH_PX,
             top: row * (MODULE_HEIGHT_PX + ROW_GAP),
             width: catalogItem.moduleWidth * MODULE_WIDTH_PX,
             height: MODULE_HEIGHT_PX
@@ -406,32 +458,33 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
 
       if (moving.placementMode === "free") {
         const size = componentVisualSize(moving);
+        const maxLocalWidth = (moving.electrical.externalLoad ? boardWidth + EXTERNAL_ZONE_WIDTH_PX : boardWidth) - size.width;
         const left = clamp(
-          x - size.width / 2,
+          localX - size.width / 2,
           0,
-          Math.max(0, (moving.electrical.externalLoad ? workspaceWidth : boardWidth) - size.width)
+          Math.max(0, maxLocalWidth)
         );
         const top = clamp(y - size.height / 2, 0, Math.max(0, boardHeight - size.height));
         return {
           layout: { placementMode: "free", x: left, y: top },
-          indicator: { left, top, width: size.width, height: size.height }
+          indicator: { left: boardOffsetX + left, top, width: size.width, height: size.height }
         };
       }
 
       const maxStart = Math.max(0, board.widthModulesPerRow - moving.moduleWidth);
-      const startModule = clamp(Math.round(x / MODULE_WIDTH_PX), 0, maxStart);
+      const startModule = clamp(Math.round(localX / MODULE_WIDTH_PX), 0, maxStart);
       const row = clamp(Math.floor(y / (MODULE_HEIGHT_PX + ROW_GAP)), 0, board.rows.length - 1);
       return {
         layout: { placementMode: "din_module", row, startModule },
         indicator: {
-          left: startModule * MODULE_WIDTH_PX,
+          left: boardOffsetX + startModule * MODULE_WIDTH_PX,
           top: row * (MODULE_HEIGHT_PX + ROW_GAP),
           width: moving.moduleWidth * MODULE_WIDTH_PX,
           height: MODULE_HEIGHT_PX
         }
       };
     },
-    [board.rows.length, board.widthModulesPerRow, boardHeight, boardWidth, workspaceWidth]
+    [board.rows.length, board.widthModulesPerRow, boardHeight, boardOffsetX, boardWidth]
   );
 
   const showDragIndicator = useCallback((placement: DragPlacement) => {
@@ -474,6 +527,75 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
       return { overBoard: true, placement: resolveDragPlacement(x, y, catalogItem, moving) };
     },
     [boardZoom, components, resolveDragPlacement]
+  );
+
+  const workspacePointFromClient = useCallback(
+    (clientX: number, clientY: number): WireBreakpoint | null => {
+      const workspace = workspaceRef.current;
+      if (!workspace) {
+        return null;
+      }
+
+      const rect = workspace.getBoundingClientRect();
+      return {
+        x: clamp((clientX - rect.left) / boardZoom, 0, workspaceWidth),
+        y: clamp((clientY - rect.top) / boardZoom, 0, boardHeight)
+      };
+    },
+    [boardHeight, boardZoom, workspaceWidth]
+  );
+
+  const startWireBreakpointDrag = useCallback(
+    (wireId: string, index: number, event: ReactPointerEvent<SVGCircleElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      cleanupWireBreakpointDragRef.current?.();
+
+      const pointerId = event.pointerId;
+      const update = (clientX: number, clientY: number) => {
+        const point = workspacePointFromClient(clientX, clientY);
+        if (point) {
+          updateWireBreakpoint(wireId, index, point);
+        }
+      };
+
+      const cleanup = () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerCancel);
+        cleanupWireBreakpointDragRef.current = null;
+      };
+
+      function onPointerMove(pointerEvent: PointerEvent) {
+        if (pointerEvent.pointerId !== pointerId) {
+          return;
+        }
+        pointerEvent.preventDefault();
+        update(pointerEvent.clientX, pointerEvent.clientY);
+      }
+
+      function onPointerUp(pointerEvent: PointerEvent) {
+        if (pointerEvent.pointerId !== pointerId) {
+          return;
+        }
+        pointerEvent.preventDefault();
+        cleanup();
+      }
+
+      function onPointerCancel(pointerEvent: PointerEvent) {
+        if (pointerEvent.pointerId !== pointerId) {
+          return;
+        }
+        cleanup();
+      }
+
+      window.addEventListener("pointermove", onPointerMove, { passive: false });
+      window.addEventListener("pointerup", onPointerUp, { passive: false });
+      window.addEventListener("pointercancel", onPointerCancel, { passive: false });
+      cleanupWireBreakpointDragRef.current = cleanup;
+      update(event.clientX, event.clientY);
+    },
+    [updateWireBreakpoint, workspacePointFromClient]
   );
 
   const commitDragPlacement = useCallback(
@@ -571,6 +693,7 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
     () => () => {
       componentGestureRef.current?.cleanup();
       cleanupPointerDragRef.current?.();
+      cleanupWireBreakpointDragRef.current?.();
     },
     []
   );
@@ -836,12 +959,20 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
             className="pointer-events-none absolute z-50 hidden rounded border-2 border-dashed border-[#2f80ed] bg-[#2f80ed]/10 transition-all duration-75"
           />
           <div
-            className="absolute left-0 top-0 rounded bg-[#f7f8f9]"
-            style={{ width: boardWidth, height: boardHeight }}
+            className="absolute left-0 top-0 rounded-l border-r border-dashed border-[#aab5c4] bg-[#e6edf4]"
+            style={{ width: boardOffsetX, height: boardHeight }}
+          >
+            <div className="absolute left-3 top-2 text-[10px] font-semibold uppercase text-[#667085]">
+              Zasilanie
+            </div>
+          </div>
+          <div
+            className="absolute top-0 rounded bg-[#f7f8f9]"
+            style={{ left: boardOffsetX, width: boardWidth, height: boardHeight }}
           />
           <div
             className="absolute top-0 border-l border-dashed border-[#aab5c4] bg-[#edf1f4]"
-            style={{ left: boardWidth, width: EXTERNAL_ZONE_WIDTH_PX, height: boardHeight }}
+            style={{ left: boardOffsetX + boardWidth, width: EXTERNAL_ZONE_WIDTH_PX, height: boardHeight }}
           >
             <div className="absolute left-3 top-2 text-[10px] font-semibold uppercase text-[#667085]">
               Odbiorniki
@@ -881,8 +1012,8 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
           {board.rows.map((row) => (
             <div
               key={row.id}
-              className="absolute left-0"
-              style={{ top: row.index * (MODULE_HEIGHT_PX + ROW_GAP), width: boardWidth, height: MODULE_HEIGHT_PX }}
+              className="absolute"
+              style={{ left: boardOffsetX, top: row.index * (MODULE_HEIGHT_PX + ROW_GAP), width: boardWidth, height: MODULE_HEIGHT_PX }}
             >
               <div className="absolute left-0 right-0 top-[52px] h-4 border-y border-[#7f8b99] bg-[#bac5d1]" />
               {Array.from({ length: row.maxModules }).map((_, index) => (
@@ -898,38 +1029,62 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
             </div>
           ))}
 
-          <svg className="absolute inset-0 z-20 overflow-visible" width={workspaceWidth} height={boardHeight}>
+          <svg className="pointer-events-none absolute inset-0 z-20 overflow-visible" width={workspaceWidth} height={boardHeight}>
             {wires
               .filter((wire) => wire.id !== editingWireId)
               .map((wire) => {
-                const path = wirePath(wire, board, components, workspaceWidth, wireLaneOffsets.get(wire.id) ?? 0);
+                const path = wirePath(wire, board, components, workspaceWidth, boardOffsetX, wireLaneOffsets.get(wire.id) ?? 0);
                 const selected = selectedItem?.kind === "wire" && selectedItem.id === wire.id;
+                const strokeWidth = wireStrokeWidth(wire.cable.crossSectionMm2);
                 return path ? (
                   <g key={wire.id}>
                     <path
                       d={path.d}
                       fill="none"
                       stroke="transparent"
-                      strokeWidth={12}
+                      strokeWidth={Math.max(12, strokeWidth + 8)}
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      pointerEvents="stroke"
-                      className="cursor-pointer"
+                      className="pointer-events-auto cursor-pointer"
+                      style={{ pointerEvents: "stroke" }}
                       onClick={(event) => {
                         event.stopPropagation();
                         selectItem({ kind: "wire", id: wire.id });
+                      }}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        const point = workspacePointFromClient(event.clientX, event.clientY);
+                        if (point) {
+                          addWireBreakpoint(wire.id, point);
+                        }
                       }}
                     />
                     <path
                       d={path.d}
                       fill="none"
                       stroke={path.color}
-                      strokeWidth={selected ? 4 : 2.5}
+                      strokeWidth={selected ? strokeWidth + 1.25 : strokeWidth}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       opacity={selected ? 0.95 : 0.7}
                       className="pointer-events-none"
                     />
+                    {selected
+                      ? (wire.breakpoints ?? []).map((breakpoint, index) => (
+                          <circle
+                            key={`${wire.id}-breakpoint-${index}`}
+                            cx={breakpoint.x}
+                            cy={breakpoint.y}
+                            r={6}
+                            fill="white"
+                            stroke={path.color}
+                            strokeWidth={2}
+                            className="pointer-events-auto cursor-move"
+                            onPointerDown={(event) => startWireBreakpointDrag(wire.id, index, event)}
+                            onClick={(event) => event.stopPropagation()}
+                          />
+                        ))
+                      : null}
                   </g>
                 ) : null;
               })}
@@ -944,6 +1099,7 @@ export function BoardView({ propertiesOpen }: BoardViewProps) {
               selected={selectedItem?.kind === "component" && selectedItem.id === component.id}
               hasError={componentIssueIds.has(component.id)}
               highlightedTerminals={selectedWireEndpoints}
+              boardOffsetX={boardOffsetX}
               onSelect={() => selectComponentFromClick(component.id)}
               onPointerDragStart={(event) => startComponentPointerGesture(component.id, event)}
               onTerminalClick={(terminalId) =>

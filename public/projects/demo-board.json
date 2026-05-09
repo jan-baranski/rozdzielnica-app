@@ -4,11 +4,11 @@
     "name": "Rozdzielnica mieszkania - demo",
     "widthModulesPerRow": 24,
     "supplyTerminals": [
-      { "id": "supply-l1", "label": "L1", "role": "power_source", "pole": "L1", "direction": "out", "position": { "x": 16, "y": 18 } },
-      { "id": "supply-l2", "label": "L2", "role": "power_source", "pole": "L2", "direction": "out", "position": { "x": 16, "y": 42 } },
-      { "id": "supply-l3", "label": "L3", "role": "power_source", "pole": "L3", "direction": "out", "position": { "x": 16, "y": 66 } },
-      { "id": "supply-n", "label": "N", "role": "neutral_source", "pole": "N", "direction": "out", "position": { "x": 16, "y": 90 } },
-      { "id": "supply-pe", "label": "PE", "role": "earth_source", "pole": "PE", "direction": "out", "position": { "x": 16, "y": 138 } }
+      { "id": "supply-l1", "label": "L1", "role": "power_source", "pole": "L1", "direction": "out", "position": { "x": 48, "y": 18 } },
+      { "id": "supply-l2", "label": "L2", "role": "power_source", "pole": "L2", "direction": "out", "position": { "x": 48, "y": 42 } },
+      { "id": "supply-l3", "label": "L3", "role": "power_source", "pole": "L3", "direction": "out", "position": { "x": 48, "y": 66 } },
+      { "id": "supply-n", "label": "N", "role": "neutral_source", "pole": "N", "direction": "out", "position": { "x": 48, "y": 90 } },
+      { "id": "supply-pe", "label": "PE", "role": "earth_source", "pole": "PE", "direction": "out", "position": { "x": 48, "y": 138 } }
     ],
     "rows": [
       { "id": "row-1", "index": 0, "maxModules": 24 },

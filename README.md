@@ -1,14 +1,14 @@
 # DIN Board Designer (hobbystyczny)
 
 Prosta aplikacja do wizualnego szkicowania rozdzielnicy DIN.  
-Powstała na własne potrzeby — żeby łatwiej ogarnąć układ aparatów i podstawowe połączenia.
+Powstała na własne potrzeby — żeby łatwiej ogarnąć układ modułów i podstawowe połączenia.
 
 👉 Dostępna online: https://rozdzielnica.app
 
 ## ✨ Funkcje
 
 - wizualny edytor rozdzielnicy (rzędy DIN i moduły)
-- biblioteka podstawowych aparatów:
+- biblioteka podstawowych modułów:
   - MCB (B10, B16, B20, B25, C16, C20)
   - RCD / RCBO
   - SPD

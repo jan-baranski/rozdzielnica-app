@@ -98,7 +98,11 @@ function wireNumber(index: number): string {
 function formatWire(wire: WireConnection, index: number, project: ProjectData, designations: Map<string, string>): string {
   const from = resolveEndpointNotation(wire.from, project, designations);
   const to = resolveEndpointNotation(wire.to, project, designations);
-  return `${wireNumber(index)}  ${from} -> ${to}  ${wire.cable.type} ${wire.cable.crossSectionMm2}mm2 ${wire.cable.color}`;
+  const route =
+    wire.breakpoints && wire.breakpoints.length > 0
+      ? ` route ${wire.breakpoints.map((point) => `(${point.x},${point.y})`).join(" ")}`
+      : "";
+  return `${wireNumber(index)}  ${from} -> ${to}  ${wire.cable.type} ${wire.cable.crossSectionMm2}mm2 ${wire.cable.color}${route}`;
 }
 
 export function formatTechnicalBoardSchema(project: ProjectData): string {
@@ -124,7 +128,7 @@ export function formatTechnicalBoardSchema(project: ProjectData): string {
     return `R${row.index + 1} (${row.maxModules}M): ${rowComponents.length > 0 ? rowComponents.join(" | ") : "empty"}`;
   });
 
-  const apparatus = sortedComponents.map((component) => {
+  const modules = sortedComponents.map((component) => {
     const designation = designations.get(component.id);
     return `${designation}  ${component.type.toUpperCase()}  ${component.name}  ${formatTechnicalRating(component)}  ${formatLayout(
       component
@@ -139,8 +143,8 @@ export function formatTechnicalBoardSchema(project: ProjectData): string {
     "[DIN LAYOUT]",
     ...rows,
     "",
-    "[APPARATUS]",
-    ...(apparatus.length > 0 ? apparatus : ["none"]),
+    "[MODULES]",
+    ...(modules.length > 0 ? modules : ["none"]),
     "",
     "[CONNECTIONS]",
     ...(wires.length > 0 ? wires : ["none"])

@@ -125,11 +125,17 @@ export interface CableProperties {
   color: string;
 }
 
+export interface WireBreakpoint {
+  x: number;
+  y: number;
+}
+
 export interface WireConnection {
   id: string;
   from: ConnectionEndpoint;
   to: ConnectionEndpoint;
   cable: CableProperties;
+  breakpoints?: WireBreakpoint[];
 }
 
 export interface VisualAsset {

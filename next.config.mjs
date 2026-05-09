@@ -1,14 +1,16 @@
 /** @type {import('next').NextConfig} */
+const isDevelopment = process.env.NODE_ENV === "development";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
-  "connect-src 'self'",
+  isDevelopment ? "connect-src 'self' ws: http://localhost:* http://127.0.0.1:*" : "connect-src 'self'",
   "font-src 'self' data:",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "img-src 'self' data: blob:",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
+  isDevelopment ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'"
 ].join("; ");
 

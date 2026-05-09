@@ -5,7 +5,7 @@ import { source, testBoard, wire } from "./testFixtures";
 import type { ProjectData } from "./types";
 
 describe("formatTechnicalBoardSchema", () => {
-  it("renders DIN layout, apparatus designations, and wire notation", () => {
+  it("renders DIN layout, module designations, and wire notation", () => {
     const project: ProjectData = {
       board: testBoard,
       components: [source],

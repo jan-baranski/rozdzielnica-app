@@ -60,7 +60,7 @@ export function detectOverlap(components: BoardComponent[]): ValidationIssue[] {
           code: "LAYOUT_OVERLAP",
           message: `${a.name} nachodzi na ${b.name} w rzędzie ${a.layout.row + 1}.`,
           relatedComponents: [a.id, b.id],
-          suggestion: "Przesuń jeden z aparatów na wolne moduły."
+          suggestion: "Przesuń jeden z modułów na wolne moduły."
         });
       }
     }
@@ -85,7 +85,7 @@ export function detectOutOfBounds(board: Board, components: BoardComponent[]): V
           code: "LAYOUT_OUT_OF_BOUNDS",
           message: `${component.name} znajduje się poza dostępnym obszarem szyny DIN.`,
           relatedComponents: [component.id],
-          suggestion: "Umieść aparat w istniejącym rzędzie i zakresie modułów."
+          suggestion: "Umieść moduł w istniejącym rzędzie i zakresie modułów."
         }
       ];
     }

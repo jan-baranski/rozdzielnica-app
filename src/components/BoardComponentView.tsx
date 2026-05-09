@@ -60,6 +60,7 @@ export function BoardComponentView({
   selected,
   hasError,
   highlightedTerminals,
+  boardOffsetX = 0,
   onSelect,
   onPointerDragStart,
   onTerminalClick
@@ -70,6 +71,7 @@ export function BoardComponentView({
   selected: boolean;
   hasError: boolean;
   highlightedTerminals?: Set<string>;
+  boardOffsetX?: number;
   onSelect: () => void;
   onPointerDragStart?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onTerminalClick: (terminalId: string) => void;
@@ -82,8 +84,8 @@ export function BoardComponentView({
   });
   const left =
     component.layout.placementMode === "din_module"
-      ? component.layout.startModule * MODULE_WIDTH_PX
-      : component.layout.x;
+      ? boardOffsetX + component.layout.startModule * MODULE_WIDTH_PX
+      : boardOffsetX + component.layout.x;
   const top =
     component.layout.placementMode === "din_module"
       ? component.layout.row * (MODULE_HEIGHT_PX + ROW_GAP)

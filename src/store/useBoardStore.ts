@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import demoProjectJson from "../../public/projects/demo-board.json";
 import { createComponentFromCatalog, findCatalogItem } from "@/domain/catalog";
+import { EXTERNAL_ZONE_WIDTH_PX, MODULE_HEIGHT_PX, MODULE_WIDTH_PX, ROW_GAP } from "@/domain/constants";
 import { endpointKey, resolveEndpoint } from "@/domain/connectivityEngine";
 import { projectSchema } from "@/domain/projectSchema";
 import { validateProject } from "@/domain/validation";
@@ -12,6 +13,7 @@ import type {
   CatalogItem,
   ProjectData,
   ValidationIssue,
+  WireBreakpoint,
   WireEndpoint,
   WireConnection
 } from "@/domain/types";
@@ -44,6 +46,10 @@ interface BoardState extends ProjectData {
   clickTerminal: (endpoint: WireEndpoint) => void;
   removeWire: (wireId: string) => void;
   updateWireCable: (wireId: string, cable: Partial<WireConnection["cable"]>) => void;
+  addWireBreakpoint: (wireId: string, point?: WireBreakpoint) => void;
+  updateWireBreakpoint: (wireId: string, index: number, point: Partial<WireBreakpoint>) => void;
+  removeWireBreakpoint: (wireId: string, index: number) => void;
+  clearWireBreakpoints: (wireId: string) => void;
   focusIssue: (issue: ValidationIssue) => void;
   exportProject: () => string;
   importProject: (json: string) => { ok: true } | { ok: false; error: string };
@@ -60,11 +66,11 @@ function createEmptyProject(): ProjectData {
       name: "Nowa rozdzielnica",
       widthModulesPerRow: 24,
       supplyTerminals: [
-        { id: "supply-l1", label: "L1", role: "power_source", pole: "L1", direction: "out", position: { x: 16, y: 18 } },
-        { id: "supply-l2", label: "L2", role: "power_source", pole: "L2", direction: "out", position: { x: 16, y: 42 } },
-        { id: "supply-l3", label: "L3", role: "power_source", pole: "L3", direction: "out", position: { x: 16, y: 66 } },
-        { id: "supply-n", label: "N", role: "neutral_source", pole: "N", direction: "out", position: { x: 16, y: 90 } },
-        { id: "supply-pe", label: "PE", role: "earth_source", pole: "PE", direction: "out", position: { x: 16, y: 138 } }
+        { id: "supply-l1", label: "L1", role: "power_source", pole: "L1", direction: "out", position: { x: 48, y: 18 } },
+        { id: "supply-l2", label: "L2", role: "power_source", pole: "L2", direction: "out", position: { x: 48, y: 42 } },
+        { id: "supply-l3", label: "L3", role: "power_source", pole: "L3", direction: "out", position: { x: 48, y: 66 } },
+        { id: "supply-n", label: "N", role: "neutral_source", pole: "N", direction: "out", position: { x: 48, y: 90 } },
+        { id: "supply-pe", label: "PE", role: "earth_source", pole: "PE", direction: "out", position: { x: 48, y: 138 } }
       ],
       rows: [
         { id: `row-${crypto.randomUUID()}`, index: 0, maxModules: 24 },
@@ -123,6 +129,24 @@ function withValidation(state: Pick<ProjectData, "board" | "components" | "wires
 
 function clampZoom(zoom: number): number {
   return Math.max(0.5, Math.min(2, Math.round(zoom * 100) / 100));
+}
+
+function sanitizeBreakpoint(point: WireBreakpoint): WireBreakpoint {
+  const x = Number.isFinite(point.x) ? point.x : 0;
+  const y = Number.isFinite(point.y) ? point.y : 0;
+  return {
+    x: Math.max(0, Math.round(x)),
+    y: Math.max(0, Math.round(y))
+  };
+}
+
+function defaultWireBreakpoint(board: Board, index: number): WireBreakpoint {
+  const width = board.widthModulesPerRow * MODULE_WIDTH_PX + EXTERNAL_ZONE_WIDTH_PX;
+  const height = board.rows.length * MODULE_HEIGHT_PX + Math.max(0, board.rows.length - 1) * ROW_GAP;
+  return {
+    x: Math.min(width - 16, 160 + index * 48),
+    y: Math.min(height - 16, 64 + index * 32)
+  };
 }
 
 function resizeBoard(board: Board, rowCount: number, modulesPerRow: number): Board {
@@ -341,6 +365,66 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         )
       })
     );
+  },
+
+  addWireBreakpoint: (wireId, point) => {
+    set((state) => ({
+      wires: state.wires.map((wire) => {
+        if (wire.id !== wireId) {
+          return wire;
+        }
+        const breakpoints = wire.breakpoints ?? [];
+        return {
+          ...wire,
+          breakpoints: [
+            ...breakpoints,
+            sanitizeBreakpoint(point ?? defaultWireBreakpoint(state.board, breakpoints.length))
+          ]
+        };
+      }),
+      selectedItem: { kind: "wire", id: wireId }
+    }));
+  },
+
+  updateWireBreakpoint: (wireId, index, point) => {
+    set((state) => ({
+      wires: state.wires.map((wire) => {
+        if (wire.id !== wireId) {
+          return wire;
+        }
+        const breakpoints = wire.breakpoints ?? [];
+        const current = breakpoints[index];
+        if (!current) {
+          return wire;
+        }
+        return {
+          ...wire,
+          breakpoints: breakpoints.map((breakpoint, breakpointIndex) =>
+            breakpointIndex === index
+              ? sanitizeBreakpoint({ x: point.x ?? current.x, y: point.y ?? current.y })
+              : breakpoint
+          )
+        };
+      })
+    }));
+  },
+
+  removeWireBreakpoint: (wireId, index) => {
+    set((state) => ({
+      wires: state.wires.map((wire) =>
+        wire.id === wireId
+          ? { ...wire, breakpoints: (wire.breakpoints ?? []).filter((_, breakpointIndex) => breakpointIndex !== index) }
+          : wire
+      ),
+      selectedItem: { kind: "wire", id: wireId }
+    }));
+  },
+
+  clearWireBreakpoints: (wireId) => {
+    set((state) => ({
+      wires: state.wires.map((wire) => (wire.id === wireId ? { ...wire, breakpoints: [] } : wire)),
+      selectedItem: { kind: "wire", id: wireId }
+    }));
   },
 
   focusIssue: (issue) => {

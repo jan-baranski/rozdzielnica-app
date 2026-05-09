@@ -107,7 +107,7 @@ function OfficialSchemaPreview({ project }: { project: ProjectData }) {
           {devices.length === 0 ? (
             <g>
               <text x={width / 2} y={190} textAnchor="middle" className="fill-[#667085] text-[14px]">
-                Pusty projekt - dodaj aparaty z biblioteki
+                Pusty projekt - dodaj moduły z biblioteki
               </text>
               <line x1={leftX} y1={topY} x2={leftX} y2={outputY - 36} />
               <circle cx={leftX} cy={topY} r={3} fill="black" />

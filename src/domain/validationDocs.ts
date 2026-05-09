@@ -76,8 +76,8 @@ export const validationDocs: ValidationDoc[] = [
     title: "Elementy poza obszarem rozdzielnicy",
     issueCodes: ["LAYOUT_OUT_OF_BOUNDS", "FREE_LAYOUT_OUT_OF_BOUNDS"],
     description:
-      "Aplikacja sprawdza, czy aparaty DIN i elementy pomocnicze mieszczą się w dostępnym obszarze rozdzielnicy.",
-    examples: ["Aparat zaczyna się za ostatnim modułem -> Błąd", "Gniazdo pomocnicze poza obrysem pola pracy -> Błąd"],
+      "Aplikacja sprawdza, czy moduły DIN i elementy pomocnicze mieszczą się w dostępnym obszarze rozdzielnicy.",
+    examples: ["Moduł zaczyna się za ostatnim modułem -> Błąd", "Gniazdo pomocnicze poza obrysem pola pracy -> Błąd"],
     rulesSummary: ["Element DIN musi mieścić się w rzędzie.", "Element wolny musi mieścić się w obrysie rozdzielnicy."],
     limitations: ["To kontrola geometrii w edytorze, nie kontrola fizycznej obudowy konkretnego producenta."]
   },
@@ -86,8 +86,8 @@ export const validationDocs: ValidationDoc[] = [
     title: "Nakładanie się elementów",
     issueCodes: ["LAYOUT_OVERLAP", "FREE_LAYOUT_OVERLAP"],
     description: "Aplikacja sprawdza, czy dwa elementy nie zajmują tego samego miejsca.",
-    examples: ["Dwa aparaty w tym samym module DIN -> Błąd", "Dwie listwy w tym samym miejscu -> Błąd"],
-    rulesSummary: ["Jeden moduł DIN może być zajęty tylko przez jeden aparat.", "Elementy wolne nie powinny na siebie nachodzić."],
+    examples: ["Dwa moduły w tym samym module DIN -> Błąd", "Dwie listwy w tym samym miejscu -> Błąd"],
+    rulesSummary: ["Jeden moduł DIN może być zajęty tylko przez jeden moduł.", "Elementy wolne nie powinny na siebie nachodzić."],
     limitations: ["Aplikacja nie sprawdza zapasu miejsca na prowadzenie przewodów wewnątrz obudowy."]
   },
   {
@@ -96,7 +96,7 @@ export const validationDocs: ValidationDoc[] = [
     issueCodes: ["TERMINAL_INCOMPATIBLE", "WIRE_MISSING_TERMINAL"],
     description:
       "Aplikacja sprawdza podstawowy sens połączenia: czy nie łączysz ze sobą dwóch wyjść, dwóch wejść albo zacisków o niepasujących rolach.",
-    examples: ["Wyjście aparatu -> wejście kolejnego aparatu -> OK", "Wyjście -> wyjście -> Błąd"],
+    examples: ["Wyjście modułu -> wejście kolejnego modułu -> OK", "Wyjście -> wyjście -> Błąd"],
     rulesSummary: ["Połączenie powinno prowadzić od źródła lub wyjścia do wejścia.", "Rola zacisku powinna pasować do drugiej strony połączenia."],
     limitations: ["To prosta kontrola logiczna, nie pełna analiza schematu elektrycznego."]
   },
@@ -177,7 +177,7 @@ export const validationDocs: ValidationDoc[] = [
     id: "missing-input",
     title: "Brak połączenia wejściowego",
     issueCodes: ["MISSING_INPUT"],
-    description: "Aplikacja sprawdza, czy aparat wymagający zasilania ma podłączone wejście.",
+    description: "Aplikacja sprawdza, czy moduł wymagający zasilania ma podłączone wejście.",
     examples: ["MCB bez przewodu na wejściu -> Ostrzeżenie", "RCD bez wejścia L/N -> Ostrzeżenie"],
     rulesSummary: ["Jeśli element ma oznaczone wejście i wymaga zasilania, wejście nie powinno być puste."],
     limitations: ["Aplikacja nie wie, czy element jest celowo zostawiony jako zapas."]
@@ -207,7 +207,7 @@ export const validationDocs: ValidationDoc[] = [
     description:
       "Aplikacja sprawdza, czy użyto zacisków zasilania oraz czy w projekcie są listwy N i PE, gdy są potrzebne.",
     examples: ["Żaden zacisk zasilania nie jest podłączony -> Ostrzeżenie", "Są zaciski N, ale brak listwy N -> Ostrzeżenie"],
-    rulesSummary: ["Zasilanie rozdzielnicy powinno być połączone z pierwszymi aparatami lub listwami.", "Projekt powinien mieć listwę PE, a przy torach N również listwę N."],
+    rulesSummary: ["Zasilanie rozdzielnicy powinno być połączone z pierwszymi modułami lub listwami.", "Projekt powinien mieć listwę PE, a przy torach N również listwę N."],
     limitations: ["To podpowiedź porządkowa, nie pełna kontrola topologii zasilania."]
   },
   {

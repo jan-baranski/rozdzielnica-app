@@ -48,7 +48,7 @@ export function ComponentLibrary({ className = "", onComponentDragStart }: Compo
   return (
     <aside className={`min-h-0 overflow-y-auto border-r border-[#c8d1dc] bg-[#f8fafc] p-4 ${className}`}>
       <div className="mb-4">
-        <h2 className="text-sm font-semibold">Biblioteka aparatów</h2>
+        <h2 className="text-sm font-semibold">Biblioteka modułów</h2>
         <p className="mt-1 text-xs text-[#667085]">Moduły z katalogu ogólnego</p>
       </div>
 

@@ -663,7 +663,7 @@ export const circuitCompletenessPolicy: ValidationPolicy = (project) => {
           message: "Odbiornik ma niepoprawny tor L - brak ciaglosci z zasilaniem.",
           relatedComponents: [loadComponent.id],
           relatedWires: loadWireIds,
-          suggestion: "Polacz tor L odbiornika z zasilaniem przez wlasciwe aparaty zabezpieczajace."
+          suggestion: "Polacz tor L odbiornika z zasilaniem przez wlasciwe moduly zabezpieczajace."
         });
       }
 
@@ -1373,7 +1373,7 @@ export const breakerGroupingPolicy: ValidationPolicy = (project) =>
               component.id,
               ...downstreamBreakers.map((breaker) => breaker?.id ?? "").filter(Boolean)
             ],
-            suggestion: `Suma zabezpieczeń to ${totalCurrent} A, współczynnik jednoczesności ${factor}, a aparat nadrzędny ma ${component.electrical.ratedCurrentA} A.`
+            suggestion: `Suma zabezpieczeń to ${totalCurrent} A, współczynnik jednoczesności ${factor}, a moduł nadrzędny ma ${component.electrical.ratedCurrentA} A.`
           }
         ]
       : [];
@@ -1392,7 +1392,7 @@ export const missingInputPolicy: ValidationPolicy = ({ components, wires }) => {
       code: "MISSING_INPUT",
       message: `${component.name} ${terminal.label} nie ma połączenia wejściowego.`,
       relatedComponents: [component.id],
-      suggestion: "Podłącz to wejście z nadrzędnego aparatu zabezpieczającego lub łącznika."
+      suggestion: "Podłącz to wejście z nadrzędnego modułu zabezpieczającego lub łącznika."
     }));
 };
 
@@ -1485,7 +1485,7 @@ export const boardSupplyConnectionPolicy: ValidationPolicy = ({ board, wires }) 
           severity: "warning" as const,
           code: "BOARD_SUPPLY_UNUSED",
           message: "Żaden zacisk zasilania rozdzielnicy nie jest podłączony.",
-          suggestion: "Podłącz L1/L2/L3/N/PE do pierwszych aparatów lub listew."
+          suggestion: "Podłącz L1/L2/L3/N/PE do pierwszych modułów lub listew."
         }
       ];
 };

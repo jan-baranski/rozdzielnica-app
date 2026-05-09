@@ -23,6 +23,10 @@ export function PropertiesPanel({ open, onToggle, onClose }: PropertiesPanelProp
     removeComponent,
     removeWire,
     updateWireCable,
+    addWireBreakpoint,
+    updateWireBreakpoint,
+    removeWireBreakpoint,
+    clearWireBreakpoints,
     validationResults
   } = useBoardStore();
 
@@ -91,7 +95,7 @@ export function PropertiesPanel({ open, onToggle, onClose }: PropertiesPanelProp
               }}
               className="w-full rounded border border-[#d92d20] bg-white px-3 py-2 text-sm font-semibold text-[#b42318] transition hover:bg-[#fff4f2]"
             >
-              Usuń aparat
+              Usuń moduł
             </button>
           ) : null}
           {selectedWire ? (
@@ -110,7 +114,7 @@ export function PropertiesPanel({ open, onToggle, onClose }: PropertiesPanelProp
 
       {!selectedComponent && !selectedWire && !selectedTerminal ? (
         <div className="mt-4 rounded border border-[#d4dce7] bg-white p-4 text-sm text-[#667085]">
-          Wybierz aparat, zacisk, przewód albo pozycję walidacji.
+          Wybierz moduł, zacisk, przewód albo pozycję walidacji.
         </div>
       ) : null}
 
@@ -253,6 +257,68 @@ export function PropertiesPanel({ open, onToggle, onClose }: PropertiesPanelProp
                 className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
               />
             </label>
+          </section>
+          <section className="rounded border border-[#d4dce7] bg-white p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-xs font-semibold uppercase text-[#667085]">Punkty załamania</h3>
+              <button
+                type="button"
+                onClick={() => addWireBreakpoint(selectedWire.id)}
+                className="rounded border border-[#2f80ed] bg-white px-2.5 py-1 text-xs font-semibold text-[#1769d1] hover:bg-[#f4f9ff]"
+              >
+                Dodaj
+              </button>
+            </div>
+            {(selectedWire.breakpoints ?? []).length > 0 ? (
+              <div className="space-y-2">
+                {(selectedWire.breakpoints ?? []).map((breakpoint, index) => (
+                  <div key={`${selectedWire.id}-breakpoint-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                    <label className="block text-xs font-semibold text-[#667085]" htmlFor={`wire-breakpoint-${index}-x`}>
+                      X
+                      <input
+                        id={`wire-breakpoint-${index}-x`}
+                        type="number"
+                        value={breakpoint.x}
+                        onChange={(event) =>
+                          updateWireBreakpoint(selectedWire.id, index, { x: Number(event.target.value) })
+                        }
+                        className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-[#667085]" htmlFor={`wire-breakpoint-${index}-y`}>
+                      Y
+                      <input
+                        id={`wire-breakpoint-${index}-y`}
+                        type="number"
+                        value={breakpoint.y}
+                        onChange={(event) =>
+                          updateWireBreakpoint(selectedWire.id, index, { y: Number(event.target.value) })
+                        }
+                        className="mt-1 w-full rounded border border-[#c8d1dc] px-2 py-1.5 text-sm font-medium text-[#172033] outline-none focus:border-[#2f80ed]"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      title="Usuń punkt"
+                      aria-label="Usuń punkt załamania"
+                      onClick={() => removeWireBreakpoint(selectedWire.id, index)}
+                      className="mt-5 h-8 rounded border border-[#d92d20] bg-white px-2 text-xs font-semibold text-[#b42318] hover:bg-[#fff4f2]"
+                    >
+                      Usuń
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => clearWireBreakpoints(selectedWire.id)}
+                  className="mt-2 w-full rounded border border-[#c8d1dc] bg-white px-3 py-2 text-xs font-semibold text-[#344054] hover:bg-[#f8fafc]"
+                >
+                  Wyczyść trasę
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-[#667085]">Dwuklik na przewodzie też dodaje punkt w miejscu kursora.</p>
+            )}
           </section>
         </div>
       ) : null}
